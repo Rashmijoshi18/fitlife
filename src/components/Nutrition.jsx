@@ -3,7 +3,7 @@ import nutritionImage from "../assets/nutrition.jpg";
 const Nutrition = () => (
   <section id="nutrition" className="py-20 px-4 bg-white text-black">
     <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-start">
-      {/* left: timeline */}
+      
       <div className="flex-1">
         <h2 className="text-3xl font-extrabold mb-12 text-center uppercase tracking-wider border-b-2 border-gray-300 pb-4">
           Nutrition Essentials
@@ -39,7 +39,7 @@ const Nutrition = () => (
           ))}
         </div>
       </div>
-      {/* right: image */}
+      
       <div className="flex-1 flex justify-center items-center">
         <img
           src={nutritionImage}
