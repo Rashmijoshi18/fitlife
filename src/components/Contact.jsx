@@ -19,16 +19,16 @@ const Contact = () => (
             <input
               type="text"
               placeholder="Your Name"
-              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-700"
+              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-900"
             />
             <input
               type="email"
               placeholder="Your Email"
-              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-700"
+              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-900"
             />
             <textarea
               placeholder="Your Message"
-              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-700"
+              className="border border-gray-600 bg-gray-200 p-2 rounded text-gray-900"
             />
             <button className="bg-white text-black px-4 py-2 rounded hover:bg-gray-300 transition">
               Send
