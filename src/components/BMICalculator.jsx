@@ -40,7 +40,7 @@ if (bmiValue < 18.5) {
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder="e.g. 70"
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:ring-gray-400"
             />
           </div>
           <div className="mb-4 text-left">
@@ -50,7 +50,7 @@ if (bmiValue < 18.5) {
               value={height}
               onChange={(e) => setHeight(e.target.value)}
               placeholder="e.g. 175"
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:ring-gray-300"
             />
           </div>
           <button

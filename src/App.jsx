@@ -1,26 +1,3 @@
-// import Navbar from "./components/Navbar";
-// import Hero from "./components/Hero";
-// import Programs from "./components/Programs";
-// import Nutrition from "./components/Nutrition";
-// import BMICalculator from "./components/BMICalculator";
-// import Contact from "./components/Contact";
-// import Footer from "./components/Footer";
-// // import BMICalculator from "./components/BMICalculator";
-
-// const App = () => (
-//   <div className="font-sans">
-//     <Navbar />
-//     <Hero />
-//     <Programs />
-//     <Nutrition />
-//     <BMICalculator/>
-//     <Contact />
-//     <Footer />
-//   </div>
-// );
-
-// export default App;
-
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import Programs from "./components/Programs";
