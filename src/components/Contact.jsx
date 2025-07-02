@@ -11,7 +11,7 @@ const Contact = () => (
             height="400"
             style={{ border: 0 }}
             allowFullScreen=""
-            loading="eager"
+            loading="lazy"
           ></iframe>
         </div>
         <div className="flex-1">
