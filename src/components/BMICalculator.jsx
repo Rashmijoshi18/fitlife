@@ -11,16 +11,16 @@ const BMICalculator = () => {
       const heightInMeters = height / 100;
       const bmiValue = (weight / (heightInMeters * heightInMeters)).toFixed(1);
       setBmi(bmiValue);
+if (bmiValue < 18.5) {
+  setCategory("Underweight 🪶");
+} else if (bmiValue >= 18.5 && bmiValue < 25) {
+  setCategory("Normal ✅");
+} else if (bmiValue >= 25 && bmiValue < 30) {
+  setCategory("Overweight ⚠️");
+} else {
+  setCategory("Obesity 🚨");
+}
 
-      if (bmiValue < 18.5) {
-        setCategory("Underweight");
-      } else if (bmiValue >= 18.5 && bmiValue < 25) {
-        setCategory("Normal weight");
-      } else if (bmiValue >= 25 && bmiValue < 30) {
-        setCategory("Overweight");
-      } else {
-        setCategory("Obesity");
-      }
     }
   };
 
