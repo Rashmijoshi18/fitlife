@@ -2,7 +2,7 @@ const Navbar = () => (
   <header className="bg-black/80 backdrop-blur text-white fixed w-full top-0 z-20 shadow transition-all duration-300">
     <nav className="flex items-center justify-between px-3 py-3">
       {/* Brand on the left */}
-      <h1 className="text-lg font-bold tracking-wide hover:text-blue-400 transition cursor-pointer whitespace-nowrap">
+      <h1 className="text-lg font-bold tracking-wide hover:text-gray-400 transition cursor-pointer whitespace-nowrap">
         FitLife
       </h1>
 
