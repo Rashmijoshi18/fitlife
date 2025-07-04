@@ -22,7 +22,7 @@ FitLife is a modern, responsive fitness web application that helps users explore
 Follow these steps to run the project locally:
 
   # 1️⃣ Clone the repository
-git clone https://github.com/your-username/fitlife.git
+git clone https://github.com/Rashmijoshi18/fitlife.git
 
 # 2️⃣ Navigate to the project directory
 cd fitlife
