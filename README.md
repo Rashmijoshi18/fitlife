@@ -9,15 +9,10 @@ FitLife is a modern, responsive fitness web application that helps users explore
 ## 🚀 Features
 
 - ✅ **Clean, modern, and fully responsive design**
-- 
 - ✅ **Easy navigation with a smooth layout**
-- 
 - ✅ **Nutrition and diet tips for healthier living**
-- 
 - ✅ **Exercise and workout recommendations**
-- 
 - ✅ **Simple, intuitive interface**
-- 
 - ✅ **Optimized for all screen sizes (desktop, tablet, mobile)**
 
 
