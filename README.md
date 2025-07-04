@@ -43,7 +43,10 @@ If you have ideas for new features or want to fix bugs, please feel free to:
 Open an issue
 
 Submit a pull request
-                                                          Stay Fit, Stay Healthy! 💪
+
+Stay Fit, Stay Healthy! 💪
+
+                                                          
 
                 
 
