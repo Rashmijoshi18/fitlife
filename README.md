@@ -1,4 +1,5 @@
 🌟 FitLife – Your Fitness Companion
+
 FitLife is a modern, responsive fitness web application that helps users explore workouts, nutrition tips, and healthy living strategies. Built with React and CSS, it delivers a clean design, engaging UI, and a user-friendly experience for fitness enthusiasts.
 
 🌐 Live: fitlife-liart.vercel.app
@@ -13,13 +14,21 @@ FitLife is a modern, responsive fitness web application that helps users explore
 
 fitlife/
   ├── public/
+  
   ├── src/
+  
   │   ├── components/
+  
   │   ├── assets/
+  
   │   ├── pages/
+  
   │   ├── App.jsx
+  
   │   └── main.jsx
+  
   ├── package.json
+  
   └── README.md
 
 
