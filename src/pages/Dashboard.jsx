@@ -29,11 +29,17 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const loadDashboard = () => {
+    setLoading(true);
+    setError(null);
     api.get('/progress/summary')
       .then(res => setSummary(res.data))
-      .catch(() => setError('Could not load dashboard. Make sure the server is running.'))
+      .catch((err) => setError(err.response?.data?.error || 'Could not load dashboard data.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   if (loading) return (
@@ -53,8 +59,8 @@ const Dashboard = () => {
     <div className="empty-state">
       <div className="empty-state-icon"><TrendingUp size={28} /></div>
       <p className="font-semibold text-red-400">{error}</p>
-      <p className="text-sm">Start the backend server with <code className="px-2 py-0.5 rounded" style={{ background: 'var(--color-surface-2)' }}>npm run dev</code> in the <code>/server</code> folder.</p>
-      <button onClick={() => window.location.reload()} className="btn btn-secondary btn-sm mt-2">Retry</button>
+      <p className="text-sm">Unable to connect to service. Try refreshing or logging in again.</p>
+      <button onClick={loadDashboard} className="btn btn-secondary btn-sm mt-2">Retry</button>
     </div>
   );
 
