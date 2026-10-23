@@ -1,23 +1,81 @@
-import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
-import Programs from "./components/Programs";
-import Nutrition from "./components/Nutrition";
-// import Testimonials from "./components/Testimonials";
-import BMICalculator from "./components/BMICalculator";
-import Contact from "./components/Contact";
-import Footer from "./components/Footer";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+// Public pages
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+
+// Protected app pages
+import AppLayout from './layouts/AppLayout';
+import Dashboard from './pages/Dashboard';
+import WorkoutsPage from './pages/WorkoutsPage';
+import ExercisesPage from './pages/ExercisesPage';
+import GoalsPage from './pages/GoalsPage';
+import NutritionPage from './pages/NutritionPage';
+import ProfilePage from './pages/ProfilePage';
+
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Public Route wrapper (redirect to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return !user ? children : <Navigate to="/dashboard" replace />;
+};
+
+const AppRoutes = () => (
+  <Routes>
+    {/* Public */}
+    <Route path="/" element={<LandingPage />} />
+    <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+
+    {/* Protected — inside app shell */}
+    <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/workouts" element={<ProtectedRoute><AppLayout><WorkoutsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/exercises" element={<ProtectedRoute><AppLayout><ExercisesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/goals" element={<ProtectedRoute><AppLayout><GoalsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/nutrition" element={<ProtectedRoute><AppLayout><NutritionPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/profile" element={<ProtectedRoute><AppLayout><ProfilePage /></AppLayout></ProtectedRoute>} />
+
+    {/* Fallback */}
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+);
 
 const App = () => (
-  <div className="font-sans">
-    <Navbar />
-    <Hero />
-    <Programs />
-    <Nutrition />
-    {/* <Testimonials /> */}
-    <BMICalculator />  {/* this must be here */}
-    <Contact />
-    <Footer />
-  </div>
+  <BrowserRouter>
+    <AuthProvider>
+      <AppRoutes />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1a1a2e',
+            color: '#fff',
+            border: '1px solid #10b981',
+            borderRadius: '12px',
+          },
+          success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+          error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          duration: 3500,
+        }}
+      />
+    </AuthProvider>
+  </BrowserRouter>
 );
 
 export default App;
