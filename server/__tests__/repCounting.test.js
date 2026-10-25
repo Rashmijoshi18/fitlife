@@ -222,3 +222,139 @@ describe('Pushup FSM Rep Counting', () => {
     expect(res.state).toBe('up');
   });
 });
+
+// FSM Test Harness for Bicep Curl
+class BicepCurlFSMTest {
+  constructor() {
+    this.leftPhase = 'extended';
+    this.rightPhase = 'extended';
+    this.repCount = 0;
+    this.lastRepTimeLeft = 0;
+    this.lastRepTimeRight = 0;
+  }
+
+  process(leftAngle, rightAngle, now = Date.now()) {
+    let repCounted = false;
+
+    // Left Arm
+    if (leftAngle !== null) {
+      if (this.leftPhase === 'extended') {
+        if (leftAngle <= 65) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle < 115) {
+          this.leftPhase = 'flexing';
+        }
+      } else if (this.leftPhase === 'flexing') {
+        if (leftAngle <= 65) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle >= 135) {
+          this.leftPhase = 'extended';
+        }
+      } else if (this.leftPhase === 'curled') {
+        if (leftAngle >= 135) {
+          this.leftPhase = 'extended';
+          if (now - this.lastRepTimeLeft > 350) {
+            this.repCount++;
+            this.lastRepTimeLeft = now;
+            repCounted = true;
+          }
+        } else if (leftAngle > 85) {
+          this.leftPhase = 'extending';
+        }
+      } else if (this.leftPhase === 'extending') {
+        if (leftAngle <= 65) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle >= 135) {
+          this.leftPhase = 'extended';
+          if (now - this.lastRepTimeLeft > 350) {
+            this.repCount++;
+            this.lastRepTimeLeft = now;
+            repCounted = true;
+          }
+        }
+      }
+    }
+
+    // Right Arm
+    if (rightAngle !== null) {
+      if (this.rightPhase === 'extended') {
+        if (rightAngle <= 65) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle < 115) {
+          this.rightPhase = 'flexing';
+        }
+      } else if (this.rightPhase === 'flexing') {
+        if (rightAngle <= 65) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle >= 135) {
+          this.rightPhase = 'extended';
+        }
+      } else if (this.rightPhase === 'curled') {
+        if (rightAngle >= 135) {
+          this.rightPhase = 'extended';
+          if (now - this.lastRepTimeRight > 350 && (!repCounted || now - this.lastRepTimeLeft > 250)) {
+            this.repCount++;
+            this.lastRepTimeRight = now;
+            repCounted = true;
+          }
+        } else if (rightAngle > 85) {
+          this.rightPhase = 'extending';
+        }
+      } else if (this.rightPhase === 'extending') {
+        if (rightAngle <= 65) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle >= 135) {
+          this.rightPhase = 'extended';
+          if (now - this.lastRepTimeRight > 350 && (!repCounted || now - this.lastRepTimeLeft > 250)) {
+            this.repCount++;
+            this.lastRepTimeRight = now;
+            repCounted = true;
+          }
+        }
+      }
+    }
+
+    const phases = [this.leftPhase, this.rightPhase];
+    const displayPhase = phases.includes('curled') ? 'curled' : phases.includes('flexing') ? 'flexing' : phases.includes('extending') ? 'extending' : 'extended';
+
+    return { repCount: this.repCount, repCounted, phase: displayPhase };
+  }
+}
+
+describe('Bicep Curl Dual/Single Arm FSM', () => {
+  let fsm;
+
+  beforeEach(() => {
+    fsm = new BicepCurlFSMTest();
+  });
+
+  it('should count a single-arm curl accurately even when other arm is straight down (user scenario)', () => {
+    let t = 1000;
+    // Left arm curls, right arm stays extended at 170°
+    expect(fsm.process(145, 170, t).phase).toBe('extended');
+    expect(fsm.process(100, 170, t += 200).phase).toBe('flexing');
+    expect(fsm.process(55, 170, t += 200).phase).toBe('curled');
+    expect(fsm.process(95, 170, t += 200).phase).toBe('extending');
+    const res = fsm.process(140, 170, t += 200);
+
+    expect(res.phase).toBe('extended');
+    expect(res.repCount).toBe(1);
+    expect(res.repCounted).toBe(true);
+  });
+
+  it('should count alternating curls (Left then Right)', () => {
+    let t = 1000;
+    // Left curl
+    fsm.process(140, 160, t);
+    fsm.process(55, 160, t += 200);
+    fsm.process(140, 160, t += 200);
+    expect(fsm.repCount).toBe(1);
+
+    // Right curl
+    fsm.process(160, 140, t += 200);
+    fsm.process(160, 50, t += 200);
+    fsm.process(160, 140, t += 200);
+    expect(fsm.repCount).toBe(2);
+  });
+});
+

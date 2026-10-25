@@ -39,12 +39,12 @@ class BaseAnalyzer {
     this.smoothers = {};
   }
 
-  getSmoother(key, alpha = 0.25) {
+  getSmoother(key, alpha = 0.45) {
     if (!this.smoothers[key]) this.smoothers[key] = createSmoother(alpha);
     return this.smoothers[key];
   }
 
-  smooth(key, value, alpha = 0.25) {
+  smooth(key, value, alpha = 0.45) {
     return this.getSmoother(key, alpha)(value);
   }
 
@@ -91,25 +91,38 @@ class SquatAnalyzer extends BaseAnalyzer {
     this.phase = 'standing';
   }
 
-  static REQUIRED_LM = [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE];
-  static STANDING_ANGLE = 155;   // degrees — fully standing
-  static BOTTOM_ANGLE = 110;     // degrees — at or below this is "bottom"
-  static DESCENT_TRIGGER = 145;  // start descent when knee drops below this
+  static STANDING_ANGLE = 150;   // degrees — fully standing
+  static BOTTOM_ANGLE = 115;     // degrees — parallel or deep squat
+  static DESCENT_TRIGGER = 140;  // start descent when knee drops below this
   static ASCENT_TRIGGER = 125;   // leave bottom when above this
 
   analyze(landmarks) {
-    if (!areLandmarksVisible(landmarks, SquatAnalyzer.REQUIRED_LM, VIS_THRESHOLD)) {
+    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.35);
+    const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.35);
+    const leftAnkle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.35);
+
+    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.35);
+    const rightAnkle = getLandmark(landmarks, LM.RIGHT_ANKLE, 0.35);
+
+    const leftLegVis = !!(leftHip && leftKnee && leftAnkle);
+    const rightLegVis = !!(rightHip && rightKnee && rightAnkle);
+
+    if (!leftLegVis && !rightLegVis) {
       this.formQuality = FORM_QUALITY.UNABLE;
-      this.feedback = ['Position yourself so your full body is visible in the camera.'];
+      this.feedback = ['Position yourself so your legs and hips are visible in the camera.'];
       return this.getState();
     }
 
-    // Get bilateral knee angle
-    const rawKneeAngle = bilateralAngle(
-      landmarks,
-      LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE,
-      LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE,
-    );
+    const aL = leftLegVis ? computeAngle(leftHip, leftKnee, leftAnkle) : null;
+    const aR = rightLegVis ? computeAngle(rightHip, rightKnee, rightAnkle) : null;
+
+    let rawKneeAngle = null;
+    if (aL !== null && aR !== null) {
+      rawKneeAngle = Math.min(aL, aR);
+    } else {
+      rawKneeAngle = aL ?? aR;
+    }
 
     if (rawKneeAngle === null) {
       this.formQuality = FORM_QUALITY.UNABLE;
@@ -127,7 +140,6 @@ class SquatAnalyzer extends BaseAnalyzer {
     const hipAngle = rawHipAngle !== null ? this.smooth('hip', rawHipAngle) : null;
 
     // FSM transitions
-    const prevPhase = this.phase;
     if (this.phase === 'standing' && kneeAngle < SquatAnalyzer.DESCENT_TRIGGER) {
       this.phase = 'descending';
     } else if (this.phase === 'descending' && kneeAngle <= SquatAnalyzer.BOTTOM_ANGLE) {
@@ -144,36 +156,25 @@ class SquatAnalyzer extends BaseAnalyzer {
     let quality = FORM_QUALITY.GOOD;
 
     if (this.phase === 'bottom' || this.phase === 'ascending' || this.phase === 'descending') {
-      // Check knee tracking
-      const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.4);
-      const leftAnkle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.4);
-      const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.4);
-      const rightAnkle = getLandmark(landmarks, LM.RIGHT_ANKLE, 0.4);
-
       if (leftKnee && leftAnkle && rightKnee && rightAnkle) {
         const leftKneeDrift = Math.abs(leftKnee.x - leftAnkle.x);
         const rightKneeDrift = Math.abs(rightKnee.x - rightAnkle.x);
-        if (leftKneeDrift > 0.08 || rightKneeDrift > 0.08) {
+        if (leftKneeDrift > 0.10 || rightKneeDrift > 0.10) {
           feedbackList.push('Keep your knees aligned with your feet.');
           quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
         }
       }
 
-      // Check depth (encourage reaching bottom)
-      if (this.phase === 'descending' && kneeAngle > 130) {
-        feedbackList.push('Try to reach a comfortable, controlled squat depth.');
-      }
-
       // Upright torso
       if (hipAngle !== null && hipAngle < 50) {
-        feedbackList.push('Try to keep a more upright torso.');
+        feedbackList.push('Try to keep a more upright chest.');
         quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
       }
     }
 
     if (feedbackList.length === 0 && this.phase !== 'waiting') {
       feedbackList.push(
-        this.phase === 'standing' ? 'Good posture — ready for next rep!' :
+        this.phase === 'standing' ? 'Good posture — ready for next squat!' :
         this.phase === 'bottom' ? 'Great depth! Now push back up.' :
         'Keep going — nice form!'
       );
@@ -189,29 +190,43 @@ class SquatAnalyzer extends BaseAnalyzer {
 /**
  * Camera position: side view.
  * Key angles: elbow angle, body alignment.
- * FSM: up (elbow > 155°) → descending → bottom (elbow < 90°) → ascending → up
+ * FSM: up (elbow > 145°) → descending → bottom (elbow <= 95°) → ascending → up
  */
 class PushupAnalyzer extends BaseAnalyzer {
   constructor() { super(); this.phase = 'up'; }
 
-  static REQUIRED_LM = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
-  static UP_ANGLE = 150;
-  static BOTTOM_ANGLE = 90;
-  static DESCENT_TRIGGER = 140;
+  static UP_ANGLE = 145;
+  static BOTTOM_ANGLE = 95;
+  static DESCENT_TRIGGER = 135;
   static ASCENT_TRIGGER = 110;
 
   analyze(landmarks) {
-    if (!areLandmarksVisible(landmarks, PushupAnalyzer.REQUIRED_LM, VIS_THRESHOLD)) {
+    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.35);
+    const leftElbow = getLandmark(landmarks, LM.LEFT_ELBOW, 0.35);
+    const leftWrist = getLandmark(landmarks, LM.LEFT_WRIST, 0.35);
+
+    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.35);
+    const rightElbow = getLandmark(landmarks, LM.RIGHT_ELBOW, 0.35);
+    const rightWrist = getLandmark(landmarks, LM.RIGHT_WRIST, 0.35);
+
+    const leftArmVis = !!(leftShoulder && leftElbow && leftWrist);
+    const rightArmVis = !!(rightShoulder && rightElbow && rightWrist);
+
+    if (!leftArmVis && !rightArmVis) {
       this.formQuality = FORM_QUALITY.UNABLE;
       this.feedback = ['Position your body sideways to the camera for push-up tracking.'];
       return this.getState();
     }
 
-    const rawElbowAngle = bilateralAngle(
-      landmarks,
-      LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST,
-      LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST,
-    );
+    const aL = leftArmVis ? computeAngle(leftShoulder, leftElbow, leftWrist) : null;
+    const aR = rightArmVis ? computeAngle(rightShoulder, rightElbow, rightWrist) : null;
+
+    let rawElbowAngle = null;
+    if (aL !== null && aR !== null) {
+      rawElbowAngle = Math.min(aL, aR);
+    } else {
+      rawElbowAngle = aL ?? aR;
+    }
 
     if (rawElbowAngle === null) {
       this.formQuality = FORM_QUALITY.UNABLE;
@@ -235,25 +250,24 @@ class PushupAnalyzer extends BaseAnalyzer {
     const feedbackList = [];
     let quality = FORM_QUALITY.GOOD;
 
-    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.4);
-    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.4);
-    const leftAnkle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.4);
+    const shoulder = leftShoulder || rightShoulder;
+    const hip = getLandmark(landmarks, LM.LEFT_HIP, 0.35) || getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const ankle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.35) || getLandmark(landmarks, LM.RIGHT_ANKLE, 0.35);
 
-    if (leftShoulder && leftHip && leftAnkle) {
-      // Check if hip is sagging (y much higher than shoulder-ankle line) or piking
-      const expectedHipY = leftShoulder.y + (leftAnkle.y - leftShoulder.y) * 0.5;
-      const hipDeviation = Math.abs(leftHip.y - expectedHipY);
-      if (hipDeviation > 0.08) {
-        feedbackList.push('Try to maintain a straight body line — avoid sagging or piking your hips.');
+    if (shoulder && hip && ankle) {
+      const expectedHipY = shoulder.y + (ankle.y - shoulder.y) * 0.5;
+      const hipDeviation = Math.abs(hip.y - expectedHipY);
+      if (hipDeviation > 0.10) {
+        feedbackList.push('Maintain a straight body line — avoid sagging hips.');
         quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
       }
     }
 
     if (feedbackList.length === 0 && this.phase !== 'waiting') {
       feedbackList.push(
-        this.phase === 'up' ? 'Great position! Arms fully extended.' :
-        this.phase === 'bottom' ? 'Good depth! Push back up.' :
-        'Looking good!'
+        this.phase === 'up' ? 'Arms extended — ready for next push-up!' :
+        this.phase === 'bottom' ? 'Good depth! Now push back up.' :
+        'Looking strong!'
       );
     }
 
@@ -267,72 +281,187 @@ class PushupAnalyzer extends BaseAnalyzer {
 /**
  * Camera position: front or side view.
  * Key angle: elbow flexion.
- * FSM: extended (elbow > 150°) → flexing → curled (elbow < 50°) → extending → extended
+ * Supports: Single-arm curl (dumbbell/bottle), alternating curls, and two-arm simultaneous curls.
+ * FSM: extended (elbow > 135°) → flexing → curled (elbow <= 65°) → extending → extended
  */
 class BicepCurlAnalyzer extends BaseAnalyzer {
-  constructor() { super(); this.phase = 'extended'; }
+  constructor() {
+    super();
+    this.phase = 'extended';
+    this.leftPhase = 'extended';
+    this.rightPhase = 'extended';
+    this.lastRepTimeLeft = 0;
+    this.lastRepTimeRight = 0;
+  }
 
-  static REQUIRED_LM = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
-  static EXTENDED_ANGLE = 145;
-  static CURLED_ANGLE = 55;
-  static FLEX_TRIGGER = 130;
-  static EXTEND_TRIGGER = 70;
+  static EXTENDED_ANGLE = 135; // degrees — arms comfortably down
+  static CURLED_ANGLE = 65;     // degrees — peak bicep contraction (natural for dumbbells/bottles)
+  static FLEX_TRIGGER = 115;    // movement starts
+  static EXTEND_TRIGGER = 85;   // leaving peak contraction
 
   analyze(landmarks) {
-    if (!areLandmarksVisible(landmarks, BicepCurlAnalyzer.REQUIRED_LM, VIS_THRESHOLD)) {
+    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.35);
+    const leftElbow = getLandmark(landmarks, LM.LEFT_ELBOW, 0.35);
+    const leftWrist = getLandmark(landmarks, LM.LEFT_WRIST, 0.35);
+
+    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.35);
+    const rightElbow = getLandmark(landmarks, LM.RIGHT_ELBOW, 0.35);
+    const rightWrist = getLandmark(landmarks, LM.RIGHT_WRIST, 0.35);
+
+    const leftArmVisible = !!(leftShoulder && leftElbow && leftWrist);
+    const rightArmVisible = !!(rightShoulder && rightElbow && rightWrist);
+
+    if (!leftArmVisible && !rightArmVisible) {
       this.formQuality = FORM_QUALITY.UNABLE;
-      this.feedback = ['Position yourself facing the camera with your arms visible.'];
+      this.feedback = ['Keep your curling arm and shoulder in the camera frame.'];
       return this.getState();
     }
 
-    const rawAngle = bilateralAngle(
-      landmarks,
-      LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST,
-      LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST,
-    );
-    if (rawAngle === null) { this.formQuality = FORM_QUALITY.UNABLE; return this.getState(); }
-    const elbowAngle = this.smooth('elbow', rawAngle);
+    const rawLeftAngle = leftArmVisible ? computeAngle(leftShoulder, leftElbow, leftWrist) : null;
+    const rawRightAngle = rightArmVisible ? computeAngle(rightShoulder, rightElbow, rightWrist) : null;
 
-    if (this.phase === 'extended' && elbowAngle < BicepCurlAnalyzer.FLEX_TRIGGER) {
-      this.phase = 'flexing';
-    } else if (this.phase === 'flexing' && elbowAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
-      this.phase = 'curled';
-    } else if (this.phase === 'curled' && elbowAngle > BicepCurlAnalyzer.EXTEND_TRIGGER) {
-      this.phase = 'extending';
-    } else if (this.phase === 'extending' && elbowAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
-      this.phase = 'extended';
-      this.countRep();
+    const leftAngle = rawLeftAngle !== null ? this.smooth('leftElbow', rawLeftAngle) : null;
+    const rightAngle = rawRightAngle !== null ? this.smooth('rightElbow', rawRightAngle) : null;
+
+    const now = Date.now();
+    let repCountedThisFrame = false;
+
+    // Track Left Arm FSM
+    if (leftAngle !== null) {
+      if (this.leftPhase === 'extended') {
+        if (leftAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle < BicepCurlAnalyzer.FLEX_TRIGGER) {
+          this.leftPhase = 'flexing';
+        }
+      } else if (this.leftPhase === 'flexing') {
+        if (leftAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.leftPhase = 'extended';
+        }
+      } else if (this.leftPhase === 'curled') {
+        if (leftAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.leftPhase = 'extended';
+          if (now - this.lastRepTimeLeft > 350) {
+            this.repCount++;
+            this.lastRepTimeLeft = now;
+            this.lastRepTime = now;
+            repCountedThisFrame = true;
+          }
+        } else if (leftAngle > BicepCurlAnalyzer.EXTEND_TRIGGER) {
+          this.leftPhase = 'extending';
+        }
+      } else if (this.leftPhase === 'extending') {
+        if (leftAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.leftPhase = 'curled';
+        } else if (leftAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.leftPhase = 'extended';
+          if (now - this.lastRepTimeLeft > 350) {
+            this.repCount++;
+            this.lastRepTimeLeft = now;
+            this.lastRepTime = now;
+            repCountedThisFrame = true;
+          }
+        }
+      }
     }
 
-    // Form: check upper arm stays relatively stable (elbow doesn't swing forward much)
+    // Track Right Arm FSM
+    if (rightAngle !== null) {
+      if (this.rightPhase === 'extended') {
+        if (rightAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle < BicepCurlAnalyzer.FLEX_TRIGGER) {
+          this.rightPhase = 'flexing';
+        }
+      } else if (this.rightPhase === 'flexing') {
+        if (rightAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.rightPhase = 'extended';
+        }
+      } else if (this.rightPhase === 'curled') {
+        if (rightAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.rightPhase = 'extended';
+          if (now - this.lastRepTimeRight > 350 && (!repCountedThisFrame || now - this.lastRepTimeLeft > 250)) {
+            this.repCount++;
+            this.lastRepTimeRight = now;
+            this.lastRepTime = now;
+            repCountedThisFrame = true;
+          }
+        } else if (rightAngle > BicepCurlAnalyzer.EXTEND_TRIGGER) {
+          this.rightPhase = 'extending';
+        }
+      } else if (this.rightPhase === 'extending') {
+        if (rightAngle <= BicepCurlAnalyzer.CURLED_ANGLE) {
+          this.rightPhase = 'curled';
+        } else if (rightAngle >= BicepCurlAnalyzer.EXTENDED_ANGLE) {
+          this.rightPhase = 'extended';
+          if (now - this.lastRepTimeRight > 350 && (!repCountedThisFrame || now - this.lastRepTimeLeft > 250)) {
+            this.repCount++;
+            this.lastRepTimeRight = now;
+            this.lastRepTime = now;
+            repCountedThisFrame = true;
+          }
+        }
+      }
+    }
+
+    // Determine current phase for UI: reflect active arm
+    const phases = [this.leftPhase, this.rightPhase];
+    if (phases.includes('curled')) {
+      this.phase = 'curled';
+    } else if (phases.includes('flexing')) {
+      this.phase = 'flexing';
+    } else if (phases.includes('extending')) {
+      this.phase = 'extending';
+    } else {
+      this.phase = 'extended';
+    }
+
     const feedbackList = [];
     let quality = FORM_QUALITY.GOOD;
 
-    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.4);
-    const leftElbow = getLandmark(landmarks, LM.LEFT_ELBOW, 0.4);
-    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.4);
-    const rightElbow = getLandmark(landmarks, LM.RIGHT_ELBOW, 0.4);
-
-    if (leftShoulder && leftElbow && rightShoulder && rightElbow) {
-      const leftElbowFwd = leftElbow.x - leftShoulder.x;
-      const rightElbowFwd = rightElbow.x - rightShoulder.x;
-      if (Math.abs(leftElbowFwd) > 0.12 || Math.abs(rightElbowFwd) > 0.12) {
-        feedbackList.push('Keep your upper arms relatively stable — avoid swinging.');
+    // Check stability for the active curling arm(s)
+    if (leftArmVisible && (this.leftPhase === 'flexing' || this.leftPhase === 'curled')) {
+      const leftElbowFwd = Math.abs(leftElbow.x - leftShoulder.x);
+      if (leftElbowFwd > 0.16) {
+        feedbackList.push('Keep your elbow tucked near your torso.');
+        quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
+      }
+    }
+    if (rightArmVisible && (this.rightPhase === 'flexing' || this.rightPhase === 'curled')) {
+      const rightElbowFwd = Math.abs(rightElbow.x - rightShoulder.x);
+      if (rightElbowFwd > 0.16) {
+        feedbackList.push('Keep your elbow tucked near your torso.');
         quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
       }
     }
 
     if (feedbackList.length === 0) {
-      feedbackList.push(
-        this.phase === 'extended' ? 'Arms extended — curl up!' :
-        this.phase === 'curled' ? 'Peak contraction! Lower slowly.' :
-        'Great control!'
-      );
+      if (this.phase === 'curled') {
+        feedbackList.push('Squeeze at the top! Now lower with control.');
+      } else if (this.phase === 'flexing') {
+        feedbackList.push('Good contraction — curl up!');
+      } else if (this.phase === 'extending') {
+        feedbackList.push('Controlled negative — extend fully.');
+      } else {
+        feedbackList.push('Arm extended — ready to curl!');
+      }
     }
 
     this.formQuality = quality;
     this.feedback = feedbackList.slice(0, 2);
     return this.getState();
+  }
+
+  reset() {
+    super.reset();
+    this.leftPhase = 'extended';
+    this.rightPhase = 'extended';
+    this.lastRepTimeLeft = 0;
+    this.lastRepTimeRight = 0;
   }
 }
 
@@ -426,26 +555,28 @@ class JumpingJacksAnalyzer extends BaseAnalyzer {
 class LungeAnalyzer extends BaseAnalyzer {
   constructor() { super(); this.phase = 'standing'; }
 
-  static REQUIRED_LM = [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE];
-  static STANDING_ANGLE = 155;
+  static STANDING_ANGLE = 150;
   static BOTTOM_ANGLE = 115;
-  static DESCENT_TRIGGER = 145;
-  static ASCENT_TRIGGER = 130;
+  static DESCENT_TRIGGER = 140;
+  static ASCENT_TRIGGER = 125;
 
   analyze(landmarks) {
-    if (!areLandmarksVisible(landmarks, LungeAnalyzer.REQUIRED_LM, VIS_THRESHOLD)) {
+    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.35);
+    const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.35);
+    const leftAnkle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.35);
+
+    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.35);
+    const rightAnkle = getLandmark(landmarks, LM.RIGHT_ANKLE, 0.35);
+
+    const leftLegVis = !!(leftHip && leftKnee && leftAnkle);
+    const rightLegVis = !!(rightHip && rightKnee && rightAnkle);
+
+    if (!leftLegVis && !rightLegVis) {
       this.formQuality = FORM_QUALITY.UNABLE;
-      this.feedback = ['Stand sideways to the camera with your full legs visible.'];
+      this.feedback = ['Stand sideways to the camera with your legs visible.'];
       return this.getState();
     }
-
-    // Use the lower of the two knee angles (the lunging leg)
-    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.4);
-    const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.4);
-    const leftAnkle = getLandmark(landmarks, LM.LEFT_ANKLE, 0.4);
-    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.4);
-    const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.4);
-    const rightAnkle = getLandmark(landmarks, LM.RIGHT_ANKLE, 0.4);
 
     const leftKneeAngle = computeAngle(leftHip, leftKnee, leftAnkle);
     const rightKneeAngle = computeAngle(rightHip, rightKnee, rightAnkle);

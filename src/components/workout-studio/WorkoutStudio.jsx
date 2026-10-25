@@ -12,7 +12,8 @@ import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Shield, Camera } from 'lucide-react';
 
-const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm';
+const MEDIAPIPE_WASM_FALLBACK = 'https://unpkg.com/@mediapipe/tasks-vision@1.1.1/wasm';
 const POSE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 
 // Session states
@@ -51,6 +52,35 @@ export const WorkoutStudio = () => {
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(
     () => sessionStorage.getItem('fitlife_camera_privacy_ack') === '1'
   );
+
+  const prevRepCountRef = useRef(0);
+
+  // Play audio chime when rep is counted
+  const playRepChime = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08); // A5
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.28);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (poseState.repCount > prevRepCountRef.current && session === SESSION.ACTIVE) {
+      playRepChime();
+    }
+    prevRepCountRef.current = poseState.repCount;
+  }, [poseState.repCount, session, playRepChime]);
 
   // Cleanup everything on unmount
   useEffect(() => {
@@ -101,95 +131,20 @@ export const WorkoutStudio = () => {
     lastTickRef.current = null;
   }, []);
 
-  // Request camera and start detection
-  const startWorkout = useCallback(async (exercise) => {
-    setSelectedExercise(exercise);
-    setSession(SESSION.LOADING);
-    setCameraError(null);
-    setModelError(null);
-    activeSecondsRef.current = 0;
-    setActiveSeconds(0);
-    setCalories(0);
-    analyzerRef.current = createAnalyzer(exercise.id);
-
-    // 1. Request camera
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: false,
-      });
-    } catch (err) {
-      let msg = 'Camera permission denied. Please allow camera access and try again.';
-      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        msg = 'No camera found. Please connect a webcam and try again.';
-      } else if (err.name === 'NotReadableError') {
-        msg = 'Camera is in use by another application. Please close it and try again.';
-      }
-      setCameraError(msg);
-      setSession(SESSION.IDLE);
-      return;
-    }
-
-    streamRef.current = stream;
-    const video = videoRef.current;
-    video.srcObject = stream;
-    await new Promise((resolve) => { video.onloadedmetadata = resolve; });
-    video.play();
-
-    // 2. Load MediaPipe model
-    try {
-      const { PoseLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
-      const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
-      detectorRef.current = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'GPU' },
-        runningMode: 'VIDEO',
-        numPoses: 1,
-        minPoseDetectionConfidence: 0.5,
-        minPosePresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-    } catch (err) {
-      console.error('[MediaPipe]', err);
-      // Try CPU fallback
-      try {
-        const { PoseLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
-        const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
-        detectorRef.current = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'CPU' },
-          runningMode: 'VIDEO',
-          numPoses: 1,
-        });
-      } catch (err2) {
-        setModelError('Failed to load pose detection model. Please check your internet connection and try again.');
-        stream.getTracks().forEach((t) => t.stop());
-        setSession(SESSION.IDLE);
-        return;
-      }
-    }
-
-    setSession(SESSION.CALIBRATING);
-    setTimeout(() => {
-      setSession(SESSION.ACTIVE);
-      startDetectionLoop();
-      startTimer();
-    }, 2000); // 2s calibration window
-  }, [startTimer]);
-
   const startDetectionLoop = useCallback(() => {
     const detect = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const detector = detectorRef.current;
 
-      if (!video || !canvas || !detector || video.paused || video.ended) {
+      if (!video || !canvas || !detector || video.paused || video.ended || video.readyState < 2) {
         animFrameRef.current = requestAnimationFrame(detect);
         return;
       }
 
       const ctx = canvas.getContext('2d');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
 
       // Draw mirrored video
       ctx.save();
@@ -255,6 +210,102 @@ export const WorkoutStudio = () => {
 
     animFrameRef.current = requestAnimationFrame(detect);
   }, [selectedExercise, user]);
+
+  // Request camera and start detection
+  const startWorkout = useCallback(async (exercise) => {
+    setSelectedExercise(exercise);
+    setSession(SESSION.LOADING);
+    setCameraError(null);
+    setModelError(null);
+    activeSecondsRef.current = 0;
+    setActiveSeconds(0);
+    setCalories(0);
+    analyzerRef.current = createAnalyzer(exercise.id);
+
+    // 1. Request camera
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        audio: false,
+      });
+    } catch (err) {
+      let msg = 'Camera permission denied. Please allow camera access and try again.';
+      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        msg = 'No camera found. Please connect a webcam and try again.';
+      } else if (err.name === 'NotReadableError') {
+        msg = 'Camera is in use by another application. Please close it and try again.';
+      }
+      setCameraError(msg);
+      setSession(SESSION.IDLE);
+      return;
+    }
+
+    streamRef.current = stream;
+
+    // Safe attachment to video element (wait for DOM if needed)
+    let video = videoRef.current;
+    if (!video) {
+      await new Promise((r) => setTimeout(r, 60));
+      video = videoRef.current;
+    }
+
+    if (video) {
+      video.srcObject = stream;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => resolve();
+        setTimeout(resolve, 1200);
+      });
+      try {
+        await video.play();
+      } catch (playErr) {
+        console.warn('Video play warning:', playErr);
+      }
+    }
+
+    // 2. Load MediaPipe model
+    try {
+      const { PoseLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
+      let vision;
+      try {
+        vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
+      } catch (e1) {
+        console.warn('[MediaPipe] jsdelivr failed, trying unpkg fallback...', e1);
+        vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_FALLBACK);
+      }
+
+      try {
+        detectorRef.current = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'GPU' },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+          minPoseDetectionConfidence: 0.5,
+          minPosePresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+      } catch (gpuErr) {
+        console.warn('[MediaPipe GPU load failed, falling back to CPU]', gpuErr);
+        detectorRef.current = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate: 'CPU' },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+        });
+      }
+    } catch (err) {
+      console.error('[MediaPipe model loading failed]', err);
+      setModelError('Failed to load pose detection model. Please check your internet connection and try again.');
+      stream.getTracks().forEach((t) => t.stop());
+      setSession(SESSION.IDLE);
+      return;
+    }
+
+    setSession(SESSION.CALIBRATING);
+    setTimeout(() => {
+      setSession(SESSION.ACTIVE);
+      startDetectionLoop();
+      startTimer();
+    }, 2000); // 2s calibration window
+  }, [startDetectionLoop, startTimer]);
 
   const handlePause = useCallback(() => {
     if (animFrameRef.current) {
@@ -400,22 +451,8 @@ export const WorkoutStudio = () => {
         <ExerciseSelector exercises={EXERCISES} onSelect={(ex) => startWorkout(ex)} />
       )}
 
-      {/* Loading state */}
-      {session === SESSION.LOADING && (
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--color-accent)' }} />
-          <p className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
-            Loading camera and pose detection model…
-          </p>
-          <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>
-            This may take 10–20 seconds on first load
-          </p>
-        </div>
-      )}
-
-      {/* Camera + Detection View */}
-      {[SESSION.CALIBRATING, SESSION.ACTIVE, SESSION.PAUSED].includes(session) && (
+      {/* Camera + Detection View (mounted whenever session is not IDLE) */}
+      {[SESSION.LOADING, SESSION.CALIBRATING, SESSION.ACTIVE, SESSION.PAUSED].includes(session) && (
         <div className="space-y-4">
           {/* Calibrating overlay */}
           {session === SESSION.CALIBRATING && (
@@ -434,6 +471,20 @@ export const WorkoutStudio = () => {
           <div className="relative rounded-xl overflow-hidden" style={{ background: '#000', aspectRatio: '16/9' }}>
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline />
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
+
+            {/* Loading state overlay inside camera box */}
+            {session === SESSION.LOADING && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gray-950/90 z-20">
+                <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
+                  style={{ borderColor: 'var(--color-accent)' }} />
+                <p className="font-semibold text-white">
+                  Loading camera & pose detection model…
+                </p>
+                <p className="text-sm" style={{ color: 'var(--color-text-subtle)' }}>
+                  This may take 10–20 seconds on first load
+                </p>
+              </div>
+            )}
 
             {/* Paused overlay */}
             {session === SESSION.PAUSED && (
