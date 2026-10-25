@@ -824,6 +824,7 @@ Fueling your body with balanced macronutrients is essential for workout performa
 
   // 13. AI WEEKLY PLAN
   if (normalizedUrl === '/ai/weekly-plan' && method === 'post') {
+    const currentId = getCurrentUserId();
     const daysPerWeek = Number(body.daysPerWeek) || 4;
     const goal = body.goal || 'general_fitness';
     const level = body.fitnessLevel || 'intermediate';
@@ -931,7 +932,8 @@ Fueling your body with balanced macronutrients is essential for workout performa
     return createMockSuccess({ plan: newPlan }, 201, config);
   }
 
-  if (normalizedUrl === '/ai/weekly-plan/current' && method === 'get') {
+  if ((normalizedUrl === '/ai/weekly-plan/current' || normalizedUrl === '/ai/weekly-plan') && method === 'get') {
+    const currentId = getCurrentUserId();
     const plans = getStored(STORAGE_KEYS.PLANS, []);
     const userPlan = plans.find((p) => p.user === currentId) || plans[0];
     if (userPlan) {
