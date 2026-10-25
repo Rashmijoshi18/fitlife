@@ -25,10 +25,11 @@ router.post('/set-key', configureApiKey);
 router.post('/coach', aiChat);
 
 // Weekly plans
+router.get('/weekly-plan/current', getCurrentPlan);
 router.get('/weekly-plan', getCurrentPlan);
 router.get('/weekly-plans', getPlanHistory);
 router.post('/weekly-plan', generatePlan);
-router.patch('/weekly-plan/:planId/day/:dayOfWeek', updateDayStatus);
+router.patch('/weekly-plan/:planId/day/:dayParam', updateDayStatus);
 
 // Session summary
 router.post('/session-summary', sessionSummary);

@@ -3,41 +3,42 @@ const mongoose = require('mongoose');
 const exerciseItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    sets: { type: Number, min: 1 },
-    reps: { type: String }, // "8-12" or "30 seconds"
-    duration: { type: Number }, // seconds, for time-based
+    sets: { type: mongoose.Schema.Types.Mixed, default: 3 },
+    reps: { type: String, default: '10-12' },
+    rest: { type: String, default: '60s' },
     restSeconds: { type: Number, default: 60 },
-    difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
-    notes: { type: String, maxlength: 300 },
+    duration: { type: mongoose.Schema.Types.Mixed },
+    difficulty: { type: String, default: 'beginner' },
+    notes: { type: String },
+    tips: { type: String },
     muscleGroup: { type: String },
     equipment: { type: String, default: 'bodyweight' },
   },
-  { _id: false }
+  { _id: false, strict: false }
 );
 
 const dayPlanSchema = new mongoose.Schema(
   {
-    dayOfWeek: {
-      type: String,
-      required: true,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
-    },
+    dayNumber: { type: Number },
+    dayOfWeek: { type: String },
     isRestDay: { type: Boolean, default: false },
-    focus: { type: String, maxlength: 100 }, // e.g. "Upper Body Push"
-    estimatedDurationMinutes: { type: Number, min: 1, max: 180 },
-    warmUp: [exerciseItemSchema],
-    exercises: [exerciseItemSchema],
-    coolDown: [exerciseItemSchema],
-    notes: { type: String, maxlength: 500 },
-    // Session tracking
+    focus: { type: String, default: 'Full Body' },
+    duration: { type: String, default: '45 mins' },
+    estimatedDurationMinutes: { type: Number, default: 45 },
+    completed: { type: Boolean, default: false },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'skipped', 'rescheduled'],
       default: 'pending',
     },
+    warmup: { type: mongoose.Schema.Types.Mixed, default: '5 mins dynamic stretching' },
+    warmUp: { type: mongoose.Schema.Types.Mixed },
+    exercises: [exerciseItemSchema],
+    cooldown: { type: mongoose.Schema.Types.Mixed, default: '5 mins gentle static stretching' },
+    coolDown: { type: mongoose.Schema.Types.Mixed },
+    notes: { type: String },
     completedAt: { type: Date },
   },
-  { _id: false }
+  { _id: false, strict: false }
 );
 
 const workoutPlanSchema = new mongoose.Schema(
@@ -48,11 +49,15 @@ const workoutPlanSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    title: { type: String },
+    description: { type: String },
+    goal: { type: String },
+    fitnessLevel: { type: String },
+    daysPerWeek: { type: Number, default: 4 },
     weekStartDate: {
       type: Date,
-      required: true,
+      default: Date.now,
     },
-    // User profile snapshot used to generate this plan
     profileSnapshot: {
       fitnessGoal: { type: String },
       fitnessLevel: { type: String },
@@ -63,11 +68,11 @@ const workoutPlanSchema = new mongoose.Schema(
       limitations: { type: String },
     },
     days: [dayPlanSchema],
-    progressionNotes: { type: String, maxlength: 1000 },
+    progressionNotes: { type: String, maxlength: 2000 },
     isActive: { type: Boolean, default: true },
     generatedBy: { type: String, default: 'gemini' },
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 
 workoutPlanSchema.index({ user: 1, weekStartDate: -1 });

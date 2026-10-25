@@ -17,12 +17,18 @@ const chatValidators = [
 ];
 
 const planValidators = [
-  body('fitnessGoal').optional().isString().isIn(['weight_loss', 'muscle_gain', 'strength', 'endurance', 'general_fitness']),
-  body('fitnessLevel').optional().isString().isIn(['beginner', 'intermediate', 'advanced']),
-  body('equipment').optional().isArray(),
+  body('goal').optional().isString(),
+  body('fitnessGoal').optional().isString(),
+  body('fitnessLevel').optional().isString(),
+  body('daysPerWeek').optional().toInt(),
+  body('durationMinutes').optional().toInt(),
+  body('sessionDurationMinutes').optional().toInt(),
+  body('equipment').optional().custom((val) => {
+    if (typeof val === 'string' || Array.isArray(val)) return true;
+    throw new Error('Equipment must be a string or array');
+  }),
   body('preferredDays').optional().isArray(),
   body('restDays').optional().isArray(),
-  body('sessionDurationMinutes').optional().isInt({ min: 15, max: 120 }),
   body('limitations').optional().isString().isLength({ max: 500 }),
 ];
 
@@ -369,34 +375,34 @@ const generatePlan = [
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ errors: errors.array(), error: errors.array()[0]?.msg || 'Invalid parameters' });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(503).json({
-          error: 'Plan generation is not configured. Please add GEMINI_API_KEY to the server environment.',
-          setupRequired: true,
-        });
-      }
+      const goal = req.body.goal || req.body.fitnessGoal || 'general_fitness';
+      const fitnessLevel = req.body.fitnessLevel || req.user?.fitnessLevel || 'intermediate';
+      const daysPerWeek = Number(req.body.daysPerWeek) || 4;
+      const durationMinutes = Number(req.body.durationMinutes || req.body.sessionDurationMinutes) || 45;
 
-      const {
-        fitnessGoal = 'general_fitness',
-        fitnessLevel,
-        equipment = ['bodyweight'],
-        preferredDays = ['monday', 'wednesday', 'friday'],
-        restDays,
-        sessionDurationMinutes = 45,
-        limitations = '',
-      } = req.body;
+      let equipmentList = [];
+      if (Array.isArray(req.body.equipment)) {
+        equipmentList = req.body.equipment;
+      } else if (typeof req.body.equipment === 'string' && req.body.equipment.trim()) {
+        equipmentList = [req.body.equipment.trim()];
+      } else {
+        equipmentList = ['dumbbells'];
+      }
 
       const profile = {
-        fitnessGoal,
-        fitnessLevel: fitnessLevel || req.user.fitnessLevel || 'beginner',
-        equipment: equipment.slice(0, 10),
-        preferredDays: preferredDays.slice(0, 7),
-        restDays: restDays?.slice(0, 7),
-        sessionDurationMinutes: Math.min(120, Math.max(15, sessionDurationMinutes)),
-        limitations: limitations.substring(0, 500),
+        goal,
+        fitnessGoal: goal,
+        fitnessLevel,
+        daysPerWeek,
+        equipment: equipmentList,
+        sessionDurationMinutes: durationMinutes,
+        durationMinutes,
+        preferredDays: req.body.preferredDays || [],
+        restDays: req.body.restDays || [],
+        limitations: req.body.limitations ? String(req.body.limitations).substring(0, 500) : '',
       };
 
       const planData = await geminiService.generateWeeklyPlan(profile);
@@ -409,12 +415,19 @@ const generatePlan = [
       weekStart.setDate(now.getDate() + (dayOfWeek === 1 ? 0 : daysUntilMonday));
       weekStart.setHours(0, 0, 0, 0);
 
-      // Deactivate old active plan
-      await WorkoutPlan.updateMany({ user: req.user._id, isActive: true }, { isActive: false });
+      // Deactivate old active plan for this user
+      if (req.user?._id) {
+        await WorkoutPlan.updateMany({ user: req.user._id, isActive: true }, { isActive: false });
+      }
 
       // Create new plan
       const plan = await WorkoutPlan.create({
         user: req.user._id,
+        title: planData.title,
+        description: planData.description,
+        goal,
+        fitnessLevel,
+        daysPerWeek,
         weekStartDate: weekStart,
         profileSnapshot: profile,
         days: planData.weekPlan,
@@ -425,17 +438,8 @@ const generatePlan = [
 
       res.status(201).json({ plan, message: 'Weekly plan generated successfully' });
     } catch (error) {
-      if (error.message?.includes('not configured')) {
-        return res.status(503).json({
-          error: 'AI service not available.',
-          setupRequired: true,
-        });
-      }
-      if (error.message?.includes('invalid JSON') || error.message?.includes('invalid plan')) {
-        return res.status(502).json({ error: 'AI returned an invalid plan. Please try again.' });
-      }
       console.error('[Generate Plan]', error.message);
-      next(error);
+      res.status(500).json({ error: 'Failed to generate weekly plan: ' + error.message });
     }
   },
 ];
@@ -449,7 +453,7 @@ const generatePlan = [
  */
 const getCurrentPlan = async (req, res, next) => {
   try {
-    const plan = await WorkoutPlan.findOne({ user: req.user._id, isActive: true }).sort({ weekStartDate: -1 });
+    const plan = await WorkoutPlan.findOne({ user: req.user._id, isActive: true }).sort({ weekStartDate: -1, createdAt: -1 });
     if (!plan) {
       return res.json({ plan: null });
     }
@@ -467,9 +471,9 @@ const getCurrentPlan = async (req, res, next) => {
 const getPlanHistory = async (req, res, next) => {
   try {
     const plans = await WorkoutPlan.find({ user: req.user._id })
-      .sort({ weekStartDate: -1 })
+      .sort({ weekStartDate: -1, createdAt: -1 })
       .limit(10)
-      .select('weekStartDate profileSnapshot isActive createdAt days.dayOfWeek days.isRestDay days.focus days.status');
+      .select('title goal fitnessLevel weekStartDate profileSnapshot isActive createdAt days.dayOfWeek days.isRestDay days.focus days.status days.completed');
     res.json({ plans });
   } catch (error) {
     next(error);
@@ -479,32 +483,44 @@ const getPlanHistory = async (req, res, next) => {
 // ─── Update Day Status ────────────────────────────────────────────────────────
 
 /**
- * @route PATCH /api/ai/weekly-plan/:planId/day/:dayOfWeek
- * @desc  Update a day's status (completed/skipped/rescheduled)
+ * @route PATCH /api/ai/weekly-plan/:planId/day/:dayParam
+ * @desc  Update a day's status (completed/pending)
  * @access Private
  */
 const updateDayStatus = async (req, res, next) => {
   try {
-    const { planId, dayOfWeek } = req.params;
-    const { status } = req.body;
-
-    const validStatuses = ['pending', 'completed', 'skipped', 'rescheduled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
-    }
+    const { planId, dayParam, dayOfWeek } = req.params;
+    const targetParam = dayParam !== undefined ? dayParam : dayOfWeek;
+    const { status, completed } = req.body;
 
     const plan = await WorkoutPlan.findOne({ _id: planId, user: req.user._id });
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
 
-    const day = plan.days.find((d) => d.dayOfWeek === dayOfWeek);
+    let day;
+    // Check if numeric index (e.g. "0", "1")
+    if (!isNaN(targetParam) && targetParam !== '') {
+      const idx = parseInt(targetParam, 10);
+      day = plan.days[idx];
+    } else if (targetParam) {
+      day = plan.days.find((d) =>
+        d.dayOfWeek?.toLowerCase() === String(targetParam).toLowerCase()
+      );
+    }
+
     if (!day) return res.status(404).json({ error: 'Day not found in plan' });
 
-    day.status = status;
-    if (status === 'completed') day.completedAt = new Date();
-    else day.completedAt = undefined;
+    if (typeof completed === 'boolean') {
+      day.completed = completed;
+      day.status = completed ? 'completed' : 'pending';
+      day.completedAt = completed ? new Date() : undefined;
+    } else if (status) {
+      day.status = status;
+      day.completed = status === 'completed';
+      day.completedAt = status === 'completed' ? new Date() : undefined;
+    }
 
     await plan.save();
-    res.json({ plan, message: `${dayOfWeek} marked as ${status}` });
+    res.json({ plan, message: `Day status updated successfully` });
   } catch (error) {
     next(error);
   }

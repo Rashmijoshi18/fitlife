@@ -828,25 +828,87 @@ Fueling your body with balanced macronutrients is essential for workout performa
     const goal = body.goal || 'general_fitness';
     const level = body.fitnessLevel || 'intermediate';
 
-    const defaultExercises = [
-      { name: 'Squats', sets: 4, reps: '10-12', rest: '60s', tips: 'Keep chest upright, knees tracked over toes' },
-      { name: 'Push-ups', sets: 3, reps: '12-15', rest: '45s', tips: 'Maintain tight core, elbows tucked at 45°' },
-      { name: 'Lunges', sets: 3, reps: '10 each side', rest: '60s', tips: 'Keep front knee behind toe line' },
-      { name: 'Plank Hold', sets: 3, reps: '45 seconds', rest: '30s', tips: 'Neutral spine, glutes squeezed tight' }
+    const dailyRoutines = [
+      {
+        focus: 'Upper Body Push (Chest, Shoulders & Triceps)',
+        warmup: '5 mins dynamic arm swings, shoulder circles, and light push-ups',
+        exercises: [
+          { name: 'Dumbbell Bench Press', sets: 4, reps: '10-12', rest: '75s', tips: 'Retract shoulder blades, control the negative' },
+          { name: 'Seated Dumbbell Shoulder Press', sets: 3, reps: '10-12', rest: '60s', tips: 'Keep core braced, press in full range' },
+          { name: 'Standard Push-ups', sets: 3, reps: '12-15', rest: '45s', tips: 'Maintain rigid plank posture' },
+          { name: 'Overhead Tricep Extension', sets: 3, reps: '12-15', rest: '45s', tips: 'Keep elbows tucked and pointed up' },
+        ],
+      },
+      {
+        focus: 'Lower Body Power (Quads, Glutes & Hamstrings)',
+        warmup: '5 mins leg swings, bodyweight squats, and hip openers',
+        exercises: [
+          { name: 'Goblet Squats', sets: 4, reps: '10-12', rest: '75s', tips: 'Chest proud, break parallel with hips' },
+          { name: 'Dumbbell Romanian Deadlifts', sets: 4, reps: '10-12', rest: '75s', tips: 'Hinge back at the hips, flat spine' },
+          { name: 'Walking Dumbbell Lunges', sets: 3, reps: '12 per leg', rest: '60s', tips: 'Keep front knee stacked over mid-foot' },
+          { name: 'Standing Calf Raises', sets: 3, reps: '15-20', rest: '45s', tips: 'Hold top squeeze for 2 seconds' },
+        ],
+      },
+      {
+        focus: 'Active Recovery & Flexibility',
+        warmup: '5 min dynamic flow',
+        exercises: [],
+      },
+      {
+        focus: 'Upper Body Pull (Back, Rear Delts & Biceps)',
+        warmup: '5 mins band pull-aparts and cat-cow stretches',
+        exercises: [
+          { name: 'Single-Arm Dumbbell Rows', sets: 4, reps: '10-12 per side', rest: '60s', tips: 'Pull elbow toward hip' },
+          { name: 'Bent-Over Dumbbell Flyes', sets: 3, reps: '12-15', rest: '45s', tips: 'Lead with pinkies to hit rear delts' },
+          { name: 'Standing Dumbbell Bicep Curls', sets: 3, reps: '10-12', rest: '60s', tips: 'Supinate wrist at peak contraction' },
+          { name: 'Dumbbell Hammer Curls', sets: 3, reps: '10-12', rest: '45s', tips: 'Palms facing each other for brachialis' },
+        ],
+      },
+      {
+        focus: 'Full Body Conditioning & Core',
+        warmup: '5 mins jumping jacks and high knees',
+        exercises: [
+          { name: 'Dumbbell Thrusters', sets: 3, reps: '10-12', rest: '75s', tips: 'Squat directly into overhead press' },
+          { name: 'Plank with Shoulder Taps', sets: 3, reps: '20 taps', rest: '45s', tips: 'Minimize hip sway' },
+          { name: 'Russian Twists', sets: 3, reps: '20 total', rest: '30s', tips: 'Rotate with your torso, not just arms' },
+          { name: 'Mountain Climbers', sets: 3, reps: '30 seconds', rest: '30s', tips: 'Keep hips low and pace brisk' },
+        ],
+      },
+      {
+        focus: 'Cardio, Mobility & Core Reset',
+        warmup: '5 min gentle dynamic stretching',
+        exercises: [
+          { name: 'Plank Hold', sets: 3, reps: '45-60s', rest: '45s', tips: 'Engage glutes and core simultaneously' },
+          { name: 'Glute Bridges', sets: 3, reps: '15 reps', rest: '45s', tips: 'Pause 2 seconds at the top' },
+        ],
+      },
+      {
+        focus: 'Complete Rest & Recovery',
+        warmup: 'Light walk or gentle breathing',
+        exercises: [],
+      },
     ];
 
     const generatedDays = [];
     for (let i = 0; i < 7; i++) {
-      const isRest = i >= daysPerWeek;
+      let isRest = false;
+      if (daysPerWeek === 3) isRest = !(i === 0 || i === 2 || i === 4);
+      else if (daysPerWeek === 4) isRest = !(i === 0 || i === 1 || i === 3 || i === 4);
+      else if (daysPerWeek === 5) isRest = !(i >= 0 && i <= 4);
+      else if (daysPerWeek === 6) isRest = !(i >= 0 && i <= 5);
+
+      const routine = dailyRoutines[i] || dailyRoutines[0];
+      const dayFocus = isRest ? 'Active Recovery & Stretching' : routine.focus;
+
       generatedDays.push({
         dayNumber: i + 1,
-        focus: isRest ? 'Active Recovery & Stretching' : `Session ${i + 1}: ${goal.replace('_', ' ').toUpperCase()}`,
+        focus: dayFocus,
         isRestDay: isRest,
         duration: isRest ? '20 mins' : `${body.durationMinutes || 45} mins`,
         completed: false,
-        warmup: isRest ? '5 min gentle dynamic stretching' : '5 mins arm circles, high knees, cat-cows',
-        exercises: isRest ? [] : defaultExercises,
-        cooldown: '5 mins hamstring, quad and chest stretching'
+        warmup: isRest ? '5 min gentle dynamic stretching & foam rolling' : routine.warmup,
+        exercises: isRest ? [] : routine.exercises,
+        cooldown: isRest ? '10 mins restorative deep breathing' : '5 mins hamstring, chest, and hip flexor stretches',
       });
     }
 

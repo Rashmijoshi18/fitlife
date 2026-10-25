@@ -94,94 +94,323 @@ const chat = async (userMessage, history = [], userContext = {}) => {
 };
 
 /**
- * Generate a structured weekly workout plan.
- * Returns a validated JavaScript object.
+ * Built-in intelligent workout routine generator (expert fallback when AI quota/network fails).
  */
-const generateWeeklyPlan = async (profile) => {
-  const ai = getClient();
+const buildStructuredWeeklyPlan = (profile) => {
+  const goal = (profile.fitnessGoal || profile.goal || 'general_fitness').toLowerCase();
+  const level = (profile.fitnessLevel || 'intermediate').toLowerCase();
+  const daysPerWeek = Number(profile.daysPerWeek) || 4;
+  const rawEquip = Array.isArray(profile.equipment) ? profile.equipment[0] : (profile.equipment || 'dumbbells');
+  const equipStr = String(rawEquip).toLowerCase();
+  const duration = Number(profile.sessionDurationMinutes || profile.durationMinutes) || 45;
 
-  const schema = {
-    weekPlan: {
-      description: 'Array of 7 day objects, one per day Monday through Sunday',
-      type: 'array',
-      items: {
-        dayOfWeek: 'string (monday/tuesday/wednesday/thursday/friday/saturday/sunday)',
-        isRestDay: 'boolean',
-        focus: 'string (e.g. "Upper Body Push") or null if rest day',
-        estimatedDurationMinutes: 'number or null if rest day',
-        warmUp: 'array of exercise objects (name, sets, reps, restSeconds, notes)',
-        exercises: 'array of exercise objects (name, sets, reps, duration?, restSeconds, muscleGroup, equipment, notes)',
-        coolDown: 'array of exercise objects',
-        notes: 'string with coaching notes for this day',
-      },
-    },
-    progressionNotes: 'string with weekly progression advice',
+  // Exercise database according to equipment
+  const hasGym = equipStr.includes('full') || equipStr.includes('gym');
+  const hasDumbbells = equipStr.includes('dumbbell') || equipStr.includes('home');
+  const hasBands = equipStr.includes('band');
+
+  const exercisePool = {
+    upperPush: hasGym
+      ? [
+          { name: 'Barbell Bench Press', sets: level === 'beginner' ? 3 : 4, reps: '8-10', rest: '90s', tips: 'Retract scapulae, touch lower sternum' },
+          { name: 'Incline Dumbbell Press', sets: 3, reps: '10-12', rest: '75s', tips: '30-degree incline, full stretch at bottom' },
+          { name: 'Standing Overhead Barbell Press', sets: 3, reps: '8-10', rest: '90s', tips: 'Brace core, press in a straight vertical line' },
+          { name: 'Cable Triceps Pushdown', sets: 3, reps: '12-15', rest: '60s', tips: 'Keep elbows pinned to your sides' },
+          { name: 'Lateral Dumbbell Raises', sets: 4, reps: '12-15', rest: '45s', tips: 'Lead with elbows, slight forward torso lean' },
+        ]
+      : hasDumbbells
+      ? [
+          { name: 'Dumbbell Floor/Bench Press', sets: level === 'beginner' ? 3 : 4, reps: '10-12', rest: '75s', tips: 'Drive through chest, controlled 2-sec eccentric' },
+          { name: 'Seated Dumbbell Shoulder Press', sets: 3, reps: '10-12', rest: '75s', tips: 'Palms facing forward, press without arching lower back' },
+          { name: 'Standard Push-Ups', sets: 3, reps: '12-15', rest: '60s', tips: 'Hands shoulder-width, elbows at 45 degrees' },
+          { name: 'Overhead Dumbbell Triceps Extension', sets: 3, reps: '12-15', rest: '60s', tips: 'Keep upper arms vertical, full elbow flexion' },
+          { name: 'Dumbbell Lateral Raises', sets: 3, reps: '12-15', rest: '45s', tips: 'Control descent, avoid swinging' },
+        ]
+      : hasBands
+      ? [
+          { name: 'Resistance Band Chest Press', sets: 4, reps: '12-15', rest: '60s', tips: 'Band anchored behind back, squeeze chest at peak' },
+          { name: 'Banded Overhead Press', sets: 3, reps: '12-15', rest: '60s', tips: 'Stand on band, press upward smoothly' },
+          { name: 'Push-Ups with Band Resistance', sets: 3, reps: '10-12', rest: '60s', tips: 'Band draped across shoulder blades' },
+          { name: 'Banded Triceps Pushdowns', sets: 3, reps: '15-20', rest: '45s', tips: 'Anchor high, lock out elbows' },
+        ]
+      : [
+          { name: 'Standard Push-Ups', sets: 4, reps: level === 'advanced' ? '20-25' : '10-15', rest: '60s', tips: 'Full depth, chest within 1 inch of floor' },
+          { name: 'Pike Push-Ups (Shoulders)', sets: 3, reps: '8-12', rest: '60s', tips: 'Hips high in the air, lower head forward' },
+          { name: 'Diamond Push-Ups (Triceps)', sets: 3, reps: '8-12', rest: '60s', tips: 'Hands together under chest' },
+          { name: 'Bench/Chair Dips', sets: 3, reps: '12-15', rest: '45s', tips: 'Keep back close to bench, bend to 90 degrees' },
+        ],
+
+    upperPull: hasGym
+      ? [
+          { name: 'Lat Pulldown (Wide Grip)', sets: 4, reps: '10-12', rest: '75s', tips: 'Pull elbows down toward back pockets' },
+          { name: 'Barbell Bent-Over Row', sets: 4, reps: '8-10', rest: '90s', tips: 'Hinge at 45 degrees, pull bar to navel' },
+          { name: 'Seated Cable Row', sets: 3, reps: '10-12', rest: '60s', tips: 'Full stretch forward, squeeze shoulder blades back' },
+          { name: 'Face Pulls', sets: 4, reps: '15', rest: '45s', tips: 'Pull rope toward eyes with external shoulder rotation' },
+          { name: 'Barbell / EZ-Bar Bicep Curls', sets: 3, reps: '10-12', rest: '60s', tips: 'Strict form, no swinging hips' },
+        ]
+      : hasDumbbells
+      ? [
+          { name: 'One-Arm Dumbbell Rows', sets: 4, reps: '10-12 each side', rest: '60s', tips: 'Pull dumbbell toward hip, flat spine' },
+          { name: 'Chest-Supported / Bent-over DB Flyes', sets: 3, reps: '12-15', rest: '60s', tips: 'Target rear delts with slight elbow bend' },
+          { name: 'Standing Dumbbell Bicep Curls', sets: 3, reps: '10-12', rest: '60s', tips: 'Supinate wrist at top of contraction' },
+          { name: 'Dumbbell Hammer Curls', sets: 3, reps: '10-12', rest: '60s', tips: 'Palms facing each other, builds brachialis thickness' },
+          { name: 'Incline Dumbbell Shrugs', sets: 3, reps: '12-15', rest: '45s', tips: 'Squeeze upper traps at apex' },
+        ]
+      : [
+          { name: 'Inverted Rows (Under Table / Bar)', sets: 4, reps: '10-12', rest: '60s', tips: 'Straight bodyline, pull chest to bar' },
+          { name: 'Doorframe / Towel Rows', sets: 3, reps: '12-15', rest: '45s', tips: 'Drive elbows back, contract lats' },
+          { name: 'Prone Cobra / Superman Holds', sets: 4, reps: '45-60 seconds', rest: '45s', tips: 'Strengthen erector spinae and posterior chain' },
+          { name: 'Bicep Isometric Doorway Curls', sets: 3, reps: '30s hold each side', rest: '45s', tips: 'Maximum voluntary muscle contraction' },
+        ],
+
+    legs: hasGym
+      ? [
+          { name: 'Barbell Back Squats', sets: 4, reps: '8-10', rest: '90s', tips: 'Hips below parallel, knees track outward' },
+          { name: 'Romanian Deadlifts (RDL)', sets: 4, reps: '8-10', rest: '90s', tips: 'Hinge hips back, feel hamstring stretch' },
+          { name: 'Leg Press', sets: 3, reps: '10-12', rest: '75s', tips: 'Feet shoulder-width, avoid locking knees at top' },
+          { name: 'Walking Dumbbell Lunges', sets: 3, reps: '12 per leg', rest: '60s', tips: '90 degree angles in both knees' },
+          { name: 'Standing Calf Raises', sets: 4, reps: '15-20', rest: '45s', tips: 'Full extension at top, pause 1 sec at bottom' },
+        ]
+      : hasDumbbells
+      ? [
+          { name: 'Goblet Squats', sets: 4, reps: '10-12', rest: '75s', tips: 'Hold dumbbell vertically at sternum, keep torso tall' },
+          { name: 'Dumbbell Romanian Deadlift', sets: 4, reps: '10-12', rest: '75s', tips: 'Keep weights close to shins, flat back' },
+          { name: 'Bulgarian Split Squats', sets: 3, reps: '8-10 per leg', rest: '60s', tips: 'Rear foot elevated on bench/couch, drive through front heel' },
+          { name: 'Dumbbell Step-Ups', sets: 3, reps: '10 per leg', rest: '60s', tips: 'Step onto steady elevated surface with control' },
+          { name: 'Standing Dumbbell Calf Raises', sets: 3, reps: '15-20', rest: '45s', tips: 'Pause 2 seconds at peak squeeze' },
+        ]
+      : [
+          { name: 'Bodyweight Air Squats', sets: 4, reps: '15-20', rest: '45s', tips: 'Chest proud, push floor away through heels' },
+          { name: 'Walking Lunges', sets: 3, reps: '12 per leg', rest: '45s', tips: 'Step long and lower rear knee toward floor' },
+          { name: 'Single-Leg Glute Bridges', sets: 3, reps: '12 per leg', rest: '45s', tips: 'Drive through heel, lock glute at top' },
+          { name: 'Bodyweight Wall Sit', sets: 3, reps: '45-60 seconds', rest: '45s', tips: 'Thighs parallel to floor, press back into wall' },
+          { name: 'Single-Leg Calf Raises', sets: 3, reps: '15 per side', rest: '30s', tips: 'Control both ascent and descent' },
+        ],
+
+    coreAndCardio: [
+      { name: 'Plank Hold', sets: 3, reps: '45-60 seconds', rest: '45s', tips: 'Squeeze glutes and abdominal wall tight' },
+      { name: 'Hanging Knee Raises / Reverse Crunches', sets: 3, reps: '12-15', rest: '45s', tips: 'Curl pelvis upward without swinging' },
+      { name: 'Russian Twists', sets: 3, reps: '20 total reps', rest: '30s', tips: 'Controlled rotational movement, engage obliques' },
+      { name: 'Mountain Climbers', sets: 3, reps: '30 seconds', rest: '30s', tips: 'Maintain stable shoulder girdle, drive knees rapidly' },
+    ]
   };
 
-  const prompt = `Generate a personalized weekly workout plan for the following user profile:
-- Fitness goal: ${profile.fitnessGoal || 'general fitness'}
-- Experience level: ${profile.fitnessLevel || 'beginner'}
-- Available equipment: ${(profile.equipment || ['bodyweight']).join(', ')}
-- Preferred workout days: ${(profile.preferredDays || ['monday', 'wednesday', 'friday']).join(', ')}
-- Rest days: ${(profile.restDays || ['tuesday', 'thursday', 'saturday', 'sunday']).join(', ')}
-- Session duration: ${profile.sessionDurationMinutes || 45} minutes
-${profile.limitations ? `- Limitations/notes: ${profile.limitations.substring(0, 200)}` : ''}
+  const dayTemplates = [
+    { dayOfWeek: 'monday', focus: 'Upper Body Power & Hypertrophy', exercises: [...exercisePool.upperPush.slice(0, 3), ...exercisePool.upperPull.slice(0, 2)] },
+    { dayOfWeek: 'tuesday', focus: 'Lower Body & Core Overload', exercises: [...exercisePool.legs.slice(0, 4), exercisePool.coreAndCardio[0]] },
+    { dayOfWeek: 'wednesday', focus: 'Active Recovery & Flexibility', isRest: true, exercises: [] },
+    { dayOfWeek: 'thursday', focus: 'Chest, Shoulders & Triceps (Push)', exercises: [...exercisePool.upperPush.slice(0, 4), exercisePool.coreAndCardio[1]] },
+    { dayOfWeek: 'friday', focus: 'Back, Biceps & Posterior Chain (Pull)', exercises: [...exercisePool.upperPull.slice(0, 4), exercisePool.coreAndCardio[2]] },
+    { dayOfWeek: 'saturday', focus: 'Quads, Hamstrings & Calves (Legs)', exercises: [...exercisePool.legs.slice(0, 4), exercisePool.coreAndCardio[3]] },
+    { dayOfWeek: 'sunday', focus: 'Rest, Recovery & Nutrition Reset', isRest: true, exercises: [] },
+  ];
 
-CRITICAL: Return ONLY a JSON object matching this schema exactly:
-${JSON.stringify(schema, null, 2)}
+  // Adjust rest days according to daysPerWeek
+  const days = dayTemplates.map((item, idx) => {
+    // If user requested fewer days, convert extra training days to rest days
+    let isRest = item.isRest;
+    if (daysPerWeek === 3) {
+      // Mon, Wed, Fri training
+      isRest = !(idx === 0 || idx === 2 || idx === 4);
+    } else if (daysPerWeek === 4) {
+      // Mon, Tue, Thu, Fri training
+      isRest = !(idx === 0 || idx === 1 || idx === 3 || idx === 4);
+    } else if (daysPerWeek === 5) {
+      // Mon through Fri training
+      isRest = !(idx >= 0 && idx <= 4);
+    } else if (daysPerWeek === 6) {
+      // Mon through Sat training
+      isRest = !(idx >= 0 && idx <= 5);
+    }
 
-Rules:
-- Include exactly 7 days (Monday through Sunday)
-- Rest days have isRestDay: true and minimal/no exercises
-- Non-rest days must have: warmUp (2-3 exercises), exercises (4-8 exercises), coolDown (2-3 stretches)
-- Each exercise object must have: name (string), sets (number), reps (string like "10-12" or "30 seconds"), restSeconds (number), notes (string)
-- For beginners: max 3-4 sets, start with bodyweight, include rest days
-- Avoid consecutive high-intensity days for beginners
-- Use only safe, well-established exercises
-- Equipment must match what the user has available`;
+    const dayFocus = isRest
+      ? (idx === 6 ? 'Complete Rest & Mental Recovery' : 'Active Recovery, Mobility & Core')
+      : item.focus;
 
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    systemInstruction: PLAN_SYSTEM_PROMPT,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
-      maxOutputTokens: 4000,
-      temperature: 0.3, // lower temp for structured output
-      responseMimeType: 'application/json',
-    },
+    return {
+      dayNumber: idx + 1,
+      dayOfWeek: item.dayOfWeek,
+      isRestDay: isRest,
+      focus: dayFocus,
+      duration: isRest ? '20 mins' : `${duration} mins`,
+      estimatedDurationMinutes: isRest ? 20 : duration,
+      completed: false,
+      status: 'pending',
+      warmup: isRest
+        ? '5 min gentle dynamic stretching, thoracic openers & foam rolling'
+        : '5-8 mins arm circles, cat-cows, hip openers and progressive bodyweight warm-up',
+      exercises: isRest ? [] : item.exercises,
+      cooldown: isRest
+        ? '10 mins restorative deep breathing and light stretching'
+        : '5 mins static hamstring, chest, lat, and hip flexor stretches',
+      notes: isRest
+        ? 'Hydrate well, eat nutrient-dense meals with adequate protein, and aim for 8 hours of sleep.'
+        : `Focus on progressive overload. Track your reps and keep rest periods between sets strictly timed.`,
+    };
   });
 
-  const raw = response.text;
-  if (!raw) throw new Error('Empty response from Gemini');
+  const formattedGoal = goal.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  const formattedLevel = level.charAt(0).toUpperCase() + level.slice(1);
 
-  // Parse and validate the JSON
-  let parsed;
-  try {
-    // Strip markdown fences if present despite instructions
-    const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-    parsed = JSON.parse(cleaned);
-  } catch {
-    throw new Error('Gemini returned invalid JSON for workout plan');
-  }
+  return {
+    title: `${formattedLevel} ${formattedGoal} Protocol`,
+    description: `Personalized ${daysPerWeek}-day weekly training split optimized for ${goal.replace(/_/g, ' ')} using ${equipStr}.`,
+    fitnessLevel: formattedLevel,
+    goal: goal,
+    daysPerWeek,
+    weekPlan: days,
+    progressionNotes: `Systematically increase weight by 2-5% or add 1-2 reps per exercise once you hit the upper target rep range with strict form.`,
+  };
+};
 
-  // Basic validation
-  if (!parsed.weekPlan || !Array.isArray(parsed.weekPlan) || parsed.weekPlan.length !== 7) {
-    throw new Error('Gemini returned an invalid plan structure (expected 7-day array)');
-  }
+/**
+ * Generate a structured weekly workout plan.
+ * Returns a validated JavaScript object with full normalization.
+ */
+const generateWeeklyPlan = async (profile) => {
+  const goal = (profile.fitnessGoal || profile.goal || 'general_fitness').toLowerCase();
+  const level = (profile.fitnessLevel || 'intermediate').toLowerCase();
+  const daysPerWeek = Number(profile.daysPerWeek) || 4;
+  const rawEquip = Array.isArray(profile.equipment) ? profile.equipment[0] : (profile.equipment || 'dumbbells');
+  const duration = Number(profile.sessionDurationMinutes || profile.durationMinutes) || 45;
 
-  const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  for (const day of parsed.weekPlan) {
-    if (!validDays.includes(day.dayOfWeek)) {
-      throw new Error(`Invalid day name in plan: ${day.dayOfWeek}`);
+  let planResult = null;
+
+  // Attempt live Gemini synthesis if client is available
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const ai = getClient();
+
+      const prompt = `Generate a personalized 7-day weekly workout plan for this athlete:
+- Fitness Goal: ${goal}
+- Experience Level: ${level}
+- Training Frequency: ${daysPerWeek} training days per week (the remaining ${7 - daysPerWeek} days must be rest/recovery)
+- Equipment: ${rawEquip}
+- Target Session Duration: ${duration} minutes
+${profile.limitations ? `- Limitations: ${profile.limitations}` : ''}
+
+CRITICAL: Return ONLY a raw JSON object with this exact structure:
+{
+  "title": "${level.toUpperCase()} ${goal.toUpperCase()} Weekly Protocol",
+  "description": "Short 1-2 sentence program overview",
+  "weekPlan": [
+    {
+      "dayOfWeek": "monday",
+      "isRestDay": false,
+      "focus": "Upper Body Push & Hypertrophy",
+      "duration": "${duration} mins",
+      "warmup": "5 mins dynamic arm swings, shoulder dislocates, and light jogging",
+      "exercises": [
+        {
+          "name": "Dumbbell Bench Press",
+          "sets": 3,
+          "reps": "10-12",
+          "rest": "60s",
+          "tips": "Drive through chest, control the 2-second negative"
+        }
+      ],
+      "cooldown": "5 mins chest and triceps static stretching"
     }
-    if (!day.isRestDay && (!day.exercises || !Array.isArray(day.exercises))) {
-      day.exercises = [];
+    ...exactly 7 items for monday through sunday
+  ],
+  "progressionNotes": "1-2 sentences on progressive overload"
+}`;
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini API response timeout')), 10000)
+      );
+
+      const response = await Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          systemInstruction: PLAN_SYSTEM_PROMPT,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: {
+            maxOutputTokens: 2500,
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+          },
+        }),
+        timeoutPromise,
+      ]);
+
+      const raw = response.text;
+      if (raw) {
+        // Strip markdown code fences if returned
+        const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (parsed.weekPlan && Array.isArray(parsed.weekPlan) && parsed.weekPlan.length >= 7) {
+          planResult = parsed;
+        }
+      }
+    } catch (geminiErr) {
+      console.warn('[Gemini Weekly Plan Generation fallback activated]:', geminiErr.message);
     }
-    if (!day.warmUp) day.warmUp = [];
-    if (!day.coolDown) day.coolDown = [];
   }
 
-  return parsed;
+  // If Gemini was unavailable or returned unexpected schema, use intelligent routine builder
+  if (!planResult) {
+    planResult = buildStructuredWeeklyPlan(profile);
+  }
+
+  // Guarantee normalized fields for frontend rendering
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const normalizedDays = (planResult.weekPlan || []).slice(0, 7).map((d, idx) => {
+    const isRest = Boolean(d.isRestDay || (d.focus && d.focus.toLowerCase().includes('rest')));
+    
+    // Normalize warmup string
+    let warmupStr = '5-8 mins dynamic stretching';
+    if (typeof d.warmup === 'string' && d.warmup.trim()) {
+      warmupStr = d.warmup;
+    } else if (Array.isArray(d.warmUp)) {
+      warmupStr = d.warmUp.map((w) => (typeof w === 'string' ? w : w.name || 'Warm-up drill')).join(', ');
+    }
+
+    // Normalize cooldown string
+    let cooldownStr = '5 mins static stretching';
+    if (typeof d.cooldown === 'string' && d.cooldown.trim()) {
+      cooldownStr = d.cooldown;
+    } else if (Array.isArray(d.coolDown)) {
+      cooldownStr = d.coolDown.map((c) => (typeof c === 'string' ? c : c.name || 'Static stretch')).join(', ');
+    }
+
+    // Normalize exercises
+    const normalizedExercises = (d.exercises || []).map((ex) => ({
+      name: ex.name || 'Bodyweight Movement',
+      sets: ex.sets || 3,
+      reps: String(ex.reps || '10-12'),
+      rest: ex.rest || (ex.restSeconds ? `${ex.restSeconds}s` : '60s'),
+      tips: ex.tips || ex.notes || 'Maintain controlled tempo and full range of motion',
+      notes: ex.notes || ex.tips || '',
+      muscleGroup: ex.muscleGroup || 'Full Body',
+      equipment: ex.equipment || rawEquip,
+    }));
+
+    return {
+      dayNumber: idx + 1,
+      dayOfWeek: daysOfWeek[idx],
+      isRestDay: isRest,
+      focus: d.focus || (isRest ? 'Rest & Recovery' : `Workout Session ${idx + 1}`),
+      duration: d.duration || `${duration} mins`,
+      completed: false,
+      status: 'pending',
+      warmup: warmupStr,
+      exercises: isRest ? [] : normalizedExercises,
+      cooldown: cooldownStr,
+      notes: d.notes || (isRest ? 'Focus on hydration, protein intake and quality sleep.' : 'Push close to failure with strict form.'),
+    };
+  });
+
+  return {
+    title: planResult.title || `${level.toUpperCase()} ${goal.replace(/_/g, ' ').toUpperCase()} Routine`,
+    description: planResult.description || `Tailored weekly workout split with progressive overload for ${goal.replace(/_/g, ' ')}.`,
+    fitnessLevel: level,
+    goal: goal,
+    daysPerWeek,
+    weekPlan: normalizedDays,
+    progressionNotes: planResult.progressionNotes || 'Aim to add 1 rep or 2-5% load each week while keeping form tight.',
+  };
 };
 
 /**
