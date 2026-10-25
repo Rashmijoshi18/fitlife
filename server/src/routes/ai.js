@@ -7,10 +7,19 @@ const {
   getPlanHistory,
   updateDayStatus,
   sessionSummary,
+  configureApiKey,
+  getAiStatus,
 } = require('../controllers/aiController');
 
 const router = express.Router();
+
+// Status check (public so client can display live model indicator)
+router.get('/status', getAiStatus);
+
 router.use(protect);
+
+// API key configuration
+router.post('/set-key', configureApiKey);
 
 // Chat
 router.post('/coach', aiChat);

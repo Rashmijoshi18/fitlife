@@ -21,7 +21,12 @@ const getClient = () => {
   return _client;
 };
 
-const MODEL = 'gemini-2.0-flash';
+const setClientKey = (key) => {
+  process.env.GEMINI_API_KEY = key;
+  _client = new GoogleGenAI({ apiKey: key });
+};
+
+const MODEL = 'gemini-3-flash-preview';
 
 // ─── Safety disclaimer appended to all system prompts ────────────────────────
 const SAFETY_DISCLAIMER = `
@@ -36,8 +41,8 @@ Important constraints you must always follow:
 
 const COACH_SYSTEM_PROMPT = `You are FitLife Coach, a knowledgeable and encouraging AI fitness assistant.
 Your role is to help users with workout planning, exercise guidance, fitness goals, and healthy habits.
-Keep responses concise, practical, and motivating (3-5 paragraphs max unless more detail is requested).
-Use plain text formatting — avoid excessive markdown in conversational replies.
+Keep responses clear, practical, structured, and motivating (3-5 concise sections max unless more detail is requested).
+Format your responses using clean Markdown (such as bold headings, bullet lists for exercise steps or food items, bold keywords, and concise markdown tables where helpful).
 ${SAFETY_DISCLAIMER}`;
 
 const PLAN_SYSTEM_PROMPT = `You are a certified fitness programmer generating structured weekly workout plans.
@@ -206,4 +211,4 @@ Keep the response to 2-3 short paragraphs. Be encouraging and specific.`;
   return response.text || 'Great workout! Keep up the consistency.';
 };
 
-module.exports = { chat, generateWeeklyPlan, generateSessionSummary };
+module.exports = { chat, generateWeeklyPlan, generateSessionSummary, setClientKey };

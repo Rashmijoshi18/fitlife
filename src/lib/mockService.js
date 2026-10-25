@@ -631,19 +631,192 @@ export const handleMockRequest = async (config) => {
     return createMockError(404, 'Exercise not found', config);
   }
 
-  // 12. AI COACH (Gemini mock)
-  if (normalizedUrl === '/ai/coach' && method === 'post') {
-    const message = (body.message || '').toLowerCase();
-    let reply = `Great question! Consistency and proper form are the cornerstones of lasting fitness progress. When training, remember to focus on controlled eccentric movements, maintain full range of motion, and stay well hydrated. Is there a specific muscle group or exercise you'd like to refine today?`;
+  // 12. AI STATUS & SET KEY
+  if (normalizedUrl === '/ai/status' && method === 'get') {
+    const key = localStorage.getItem('fitlife_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+    return createMockSuccess({ configured: Boolean(key), model: 'gemini-3-flash-preview' }, 200, config);
+  }
 
-    if (message.includes('squat')) {
-      reply = `**Squat Form Fundamentals:**\n1. **Stance:** Feet shoulder-width apart, toes flared slightly outward (15-30°).\n2. **Hips First:** Initiate the movement by sending your hips back, not bending your knees forward.\n3. **Knee Alignment:** Push your knees outward in line with your second toe.\n4. **Depth:** Aim for thighs parallel to the ground while keeping your chest proud and spine neutral.\n5. **Drive:** Push evenly through your mid-foot and heel on the way up.`;
-    } else if (message.includes('pushup') || message.includes('push up') || message.includes('push-up')) {
-      reply = `**Push-up Form Mastery:**\n1. **Hand Placement:** Just outside shoulder width, fingers spread.\n2. **Elbow Path:** Keep elbows tucked at approximately a 45° angle (arrow shape, not a 'T').\n3. **Core Tension:** Squeeze your glutes and brace your abs to prevent sagging hips.\n4. **Range:** Lower until your chest is 1-2 inches from the floor, then press back up fully without flaring your elbows.`;
-    } else if (message.includes('plan') || message.includes('routine') || message.includes('split')) {
-      reply = `**Recommended Weekly Structure:**\n- **3 Days:** Full Body (Mon / Wed / Fri) with 48h rest between sessions.\n- **4 Days:** Upper / Lower Split (Mon & Tue, Thu & Fri).\n- **Nutrition Tip:** Aim for 1.6-2.0g protein per kg of bodyweight to optimize muscular recovery.\n\nYou can also jump to our **AI Weekly Planner** in the sidebar to generate a custom routine!`;
-    } else if (message.includes('food') || message.includes('eat') || message.includes('diet') || message.includes('protein')) {
-      reply = `**Nutrition & Fueling Guidelines:**\n- **Pre-Workout (1-2h before):** Complex carbs + moderate protein (e.g., oatmeal with whey, or banana with peanut butter).\n- **Post-Workout (within 2h):** 25-35g fast-digesting protein with replenishing carbohydrates.\n- **Hydration:** Consume 500ml water before workout and sip 200ml every 15-20 minutes during training.`;
+  if (normalizedUrl === '/ai/set-key' && method === 'post') {
+    const { apiKey } = body;
+    if (apiKey) {
+      localStorage.setItem('fitlife_gemini_key', apiKey.trim());
+    }
+    return createMockSuccess({ success: true, configured: true }, 200, config);
+  }
+
+  // 13. AI COACH (Gemini direct / mock)
+  if (normalizedUrl === '/ai/coach' && method === 'post') {
+    const raw = body.message || '';
+    const msg = raw.toLowerCase();
+    const history = body.history || [];
+
+    // Attempt live Google Gemini call
+    const apiKey = localStorage.getItem('fitlife_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+    if (apiKey) {
+      try {
+        const contents = [
+          ...history.map((h) => ({
+            role: h.role === 'model' ? 'model' : 'user',
+            parts: [{ text: h.content }],
+          })),
+          { role: 'user', parts: [{ text: raw }] },
+        ];
+
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents }),
+          }
+        );
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const geminiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (geminiText) {
+            return createMockSuccess({ reply: geminiText, source: 'gemini-live' }, 200, config);
+          }
+        }
+      } catch (geminiFetchErr) {
+        console.warn('[FitLife Client] Direct Gemini call error, using local fallback:', geminiFetchErr);
+      }
+    }
+
+    let reply = `### 🏋️ Coach Guidance on "${raw.trim().substring(0, 45)}"
+
+Great question! Here is personalized guidance based on your fitness goals:
+
+- **Consistency First:** Fitness results are built on repeating basic habits day after day. Focus on showing up regularly.
+- **Form Over Weight:** Always master the mechanics and range of motion before increasing resistance or volume.
+- **Nutrition Pairing:** Balance your daily intake with lean proteins, complex carbohydrates, and wholesome healthy fats.
+- **Progressive Overload:** Track your sets and reps so you can systematically challenge your muscles over time.
+
+*Would you like more details on exercise selection, specific meal recipes, or a customized weekly breakdown?*`;
+
+    if (msg.includes('banana') && msg.includes('egg')) {
+      reply = `### 🍌 Eggs & Banana: Optimal Fitness Fuel
+
+**Yes, absolutely!** Eating bananas with eggs is one of the most effective, nutrient-dense natural food combinations for gym-goers.
+
+#### Why This Combo Works So Well:
+- **Fast & Sustained Energy (Banana):** Bananas provide easily digestible carbohydrates (fructose & glucose) along with **potassium** (~400mg) which prevents muscle cramps and replenishes glycogen stores.
+- **Complete High-Quality Protein (Eggs):** Whole eggs offer an unbeatable biological value (BV 100), delivering **6–7g of complete protein per egg** rich in leucine to stimulate muscle protein synthesis (MPS).
+- **Essential Healthy Fats:** Choline and healthy fats in the yolk support sustained hormonal health and cognitive drive during training.
+
+#### ⏱️ Best Timing for Gym:
+- **Pre-Workout (45–60 mins before):** 1 ripe banana + 2 boiled or poached eggs (or egg whites if you prefer lighter digestion). The banana delivers immediate workout stamina without stomach heaviness.
+- **Post-Workout (within 45 mins):** 1–2 bananas + 2–3 whole eggs. Rapidly restores depleted glycogen and kickstarts immediate muscle recovery.
+
+*Pro-tip: If eating less than 30 minutes before intense training, eat the banana first and save the eggs for post-workout to avoid delayed gastric emptying from fats.*`;
+    } else if (msg.includes('banana')) {
+      reply = `### 🍌 Bananas for Fitness & Workout Performance
+
+Bananas are nature's ideal pre- and post-workout carbohydrate source:
+
+- **Quick Glycogen Replenishment:** Contains roughly 27g of carbohydrates per medium banana, quickly absorbed by muscle cells.
+- **Cramp Prevention:** Rich in **potassium** and **magnesium**, key electrolytes lost through sweat during heavy sets.
+- **Gentle on Digestion:** Low in fat and moderate in fiber, so it won't cause gastrointestinal distress before lifting or running.
+- **Ideal Timing:** Eat 1 medium banana 30–45 minutes prior to your session for an immediate energy boost.`;
+    } else if (msg.includes('egg')) {
+      reply = `### 🥚 Eggs: The Gold Standard Protein
+
+Eggs are often called the gold standard of natural muscle-building nutrition:
+
+- **Complete Amino Acid Profile:** One large egg has ~6.5g protein containing all 9 essential amino acids with high bioavailability.
+- **Leucine Rich:** Contains ~0.5g leucine per egg, the primary trigger for muscle protein synthesis (MPS).
+- **Yolk Benefits:** The yolk contains vital fat-soluble vitamins (A, D, E, K), zinc, and choline for nervous system recovery.
+- **Gym Recommendation:** 3–4 eggs daily (2 whole + 2 whites, or all whole depending on your daily caloric targets).`;
+    } else if (msg.includes('before') || msg.includes('pre-workout') || msg.includes('pre workout')) {
+      reply = `### ⚡ Pre-Workout Fueling Protocol
+
+What you eat before training determines your strength output, muscular stamina, and mental focus:
+
+#### 🕒 Timing Windows
+- **2 to 3 Hours Before:** Balanced meal containing complex carbs, lean protein, and low fat (e.g., grilled chicken breast, sweet potato, steamed greens).
+- **45 to 60 Minutes Before:** Fast-acting carbs with moderate, easily digestible protein (e.g., oatmeal with half a scoop of whey, or 1 banana with 2 boiled egg whites).
+- **15 to 30 Minutes Before:** Simple fast carbs only if needed (e.g., 1 banana or a small handful of dates).
+
+#### 🚫 Foods to Avoid Immediately Before Gym:
+- Heavy deep-fried or high-fat foods (slows gastric emptying and causes sluggishness).
+- Excess cruciferous fiber (can cause bloating during heavy compound lifts).`;
+    } else if (msg.includes('after') || msg.includes('post-workout') || msg.includes('post workout')) {
+      reply = `### 🔄 Post-Workout Recovery Blueprint
+
+Post-workout nutrition is designed to shift your body from a catabolic (breakdown) state into an anabolic (growth) state:
+
+#### 🎯 The Anabolic Formula: Protein + Carbohydrates
+- **Protein (25–35g):** Required to repair micro-tears in muscle fibers (whey isolate, egg whites, chicken breast, paneer/tofu).
+- **Carbohydrates (30–60g):** Replenishes muscle glycogen depleted during intense resistance training (white rice, baked potato, ripe bananas).
+
+#### ⏱️ The Timing Window:
+Aim to eat within **45 to 90 minutes** post-training for optimal glycogen synthesis and to reduce muscle soreness.`;
+    } else if (msg.includes('protein') || msg.includes('macro') || msg.includes('chicken') || msg.includes('paneer')) {
+      reply = `### 🥩 Daily Protein & Macronutrient Strategy
+
+To build lean muscle and speed up recovery:
+
+#### 1. Daily Protein Target
+- **Optimal Range:** **1.6g to 2.2g of protein per kilogram of bodyweight** (0.8g–1.0g per lb).
+- *Example:* A 70kg (154 lbs) individual should aim for **110g to 140g of protein daily**.
+
+#### 2. Best Whole-Food Protein Sources
+| Source | Serving | Protein Content |
+| :--- | :--- | :--- |
+| **Chicken Breast** | 100g cooked | ~31g protein |
+| **Whole Eggs** | 2 large eggs | ~13g protein |
+| **Paneer / Cottage Cheese** | 100g | ~18g protein |
+| **Whey Protein** | 1 scoop (30g) | ~24g protein |
+| **Tofu / Soy Chunks** | 100g | ~15g–52g protein |
+
+#### 3. Distribution
+Spread your protein evenly across **3 to 4 meals** (approx. 25–40g per meal) to maximize muscle protein synthesis throughout the day.`;
+    } else if (msg.includes('squat') || msg.includes('leg')) {
+      reply = `### 🦵 Squat Form Fundamentals
+1. **Stance:** Feet shoulder-width apart, toes flared slightly outward (15–30°).
+2. **Hips First:** Initiate the movement by sending your hips back, keeping your chest proud.
+3. **Knee Alignment:** Push your knees outward in line with your second toe.
+4. **Depth:** Aim for thighs parallel to the ground while keeping your spine neutral.
+5. **Drive:** Push evenly through your mid-foot and heel on the way up.`;
+    } else if (msg.includes('pushup') || msg.includes('push up') || msg.includes('push-up') || msg.includes('chest')) {
+      reply = `### 🏋️ Push-up Form Mastery
+1. **Hand Placement:** Just outside shoulder width, fingers spread for maximum floor grip.
+2. **Elbow Path:** Keep elbows tucked at approximately a 45° angle (arrow shape 🏹, not flared 'T').
+3. **Core Tension:** Squeeze your glutes and brace your abs to prevent sagging hips.
+4. **Range:** Lower until your chest is 1–2 inches from the floor, then press back up fully.`;
+    } else if (msg.includes('bicep') || msg.includes('curl') || msg.includes('arm')) {
+      reply = `### 💪 Bicep Growth & Form Mechanics
+- **Elbow Anchoring:** Pin your elbows slightly in front of your ribcage and keep them motionless.
+- **Supination:** As you curl the dumbbell, rotate your pinky finger upward toward your outer shoulder.
+- **Controlled Eccentric:** Take 2 to 3 seconds to lower the weight to maximize hypertrophy.
+- **Best Routine:** Incline DB Curls (3x10), Barbell Curls (3x8), Hammer Curls (3x12).`;
+    } else if (msg.includes('weight loss') || msg.includes('fat') || msg.includes('diet chart') || msg.includes('diet chaart')) {
+      reply = `### 🥗 Beginner Gym Diet & Nutrition Blueprint
+
+Fueling your body with balanced macronutrients is essential for workout performance and recovery:
+
+#### 🍽️ Daily Meal Blueprint
+- **Breakfast:** 3 eggs (or tofu scramble) + whole grain oats with berries + 1 glass of water.
+- **Mid-Morning Snack:** 1 apple or banana + a handful of almonds/walnuts.
+- **Lunch:** Grilled chicken breast (or paneer/tofu/lentils) + brown rice or quinoa + generous green salad.
+- **Pre-Workout (1–2h before):** Complex carbs + moderate protein (e.g., oatmeal with whey, or banana with peanut butter).
+- **Post-Workout (within 2h):** 25–35g fast-digesting protein with replenishing carbohydrates.
+- **Dinner:** Lean protein (fish, chicken, or beans) + steamed vegetables (broccoli, spinach) + sweet potato.
+
+#### 💧 Hydration & Recovery Rules
+- **Hydration:** Consume 500ml water before workout and sip 200ml every 15–20 minutes during training.
+- **Protein Intake:** Aim for **1.6g – 2.0g** of protein per kg of bodyweight daily.`;
+    } else if (msg.includes('plan') || msg.includes('routine') || msg.includes('split')) {
+      reply = `### 📅 Recommended Weekly Split
+| Day | Focus | Core Exercises |
+| :--- | :--- | :--- |
+| **Monday** | Full Body A | Squats, Push-ups, Bent-over Rows, Plank |
+| **Wednesday** | Full Body B | Romanian Deadlifts, Overhead Press, Lat Pulldowns |
+| **Friday** | Full Body C | Lunges, Incline DB Press, Bicep Curls, Core |
+| **Tue/Thu/Weekend** | Active Recovery | 30 min brisk walk, mobility work, light stretching |
+
+*Aim for 1.6–2.0g of protein per kg of body weight to support muscle repair.*`;
     }
 
     return createMockSuccess({ reply }, 200, config);

@@ -26,6 +26,233 @@ const planValidators = [
   body('limitations').optional().isString().isLength({ max: 500 }),
 ];
 
+const fs = require('fs');
+const path = require('path');
+
+const getFitnessCoachReply = (rawMessage) => {
+  const msg = (rawMessage || '').toLowerCase();
+
+  // 1. Banana and Egg specific combination
+  if (msg.includes('banana') && msg.includes('egg')) {
+    return `### 🍌 Eggs & Banana: Optimal Fitness Fuel
+
+**Yes, absolutely!** Eating bananas with eggs is one of the most effective, nutrient-dense natural food combinations for gym-goers.
+
+#### Why This Combo Works So Well:
+- **Fast & Sustained Energy (Banana):** Bananas provide easily digestible carbohydrates (fructose & glucose) along with **potassium** (~400mg) which prevents muscle cramps and replenishes glycogen stores.
+- **Complete High-Quality Protein (Eggs):** Whole eggs offer an unbeatable biological value (BV 100), delivering **6–7g of complete protein per egg** rich in leucine to stimulate muscle protein synthesis (MPS).
+- **Essential Healthy Fats:** Choline and healthy fats in the yolk support sustained hormonal health and cognitive drive during training.
+
+#### ⏱️ Best Timing for Gym:
+- **Pre-Workout (45–60 mins before):** 1 ripe banana + 2 boiled or poached eggs (or egg whites if you prefer lighter digestion). The banana delivers immediate workout stamina without stomach heaviness.
+- **Post-Workout (within 45 mins):** 1–2 bananas + 2–3 whole eggs. Rapidly restores depleted glycogen and kickstarts immediate muscle recovery.
+
+*Pro-tip: If eating less than 30 minutes before intense training, eat the banana first and save the eggs for post-workout to avoid delayed gastric emptying from fats.*`;
+  }
+
+  // 2. Banana alone
+  if (msg.includes('banana')) {
+    return `### 🍌 Bananas for Fitness & Workout Performance
+
+Bananas are nature's ideal pre- and post-workout carbohydrate source:
+
+- **Quick Glycogen Replenishment:** Contains roughly 27g of carbohydrates per medium banana, quickly absorbed by muscle cells.
+- **Cramp Prevention:** Rich in **potassium** and **magnesium**, key electrolytes lost through sweat during heavy sets.
+- **Gentle on Digestion:** Low in fat and moderate in fiber, so it won't cause gastrointestinal distress before lifting or running.
+- **Ideal Timing:** Eat 1 medium banana 30–45 minutes prior to your session for an immediate energy boost.`;
+  }
+
+  // 3. Eggs alone
+  if (msg.includes('egg')) {
+    return `### 🥚 Eggs: The Gold Standard Protein
+
+Eggs are often called the gold standard of natural muscle-building nutrition:
+
+- **Complete Amino Acid Profile:** One large egg has ~6.5g protein containing all 9 essential amino acids with high bioavailability.
+- **Leucine Rich:** Contains ~0.5g leucine per egg, the primary trigger for muscle protein synthesis (MPS).
+- **Yolk Benefits:** The yolk contains vital fat-soluble vitamins (A, D, E, K), zinc, and choline for nervous system recovery.
+- **Gym Recommendation:** 3–4 eggs daily (2 whole + 2 whites, or all whole depending on your daily caloric targets).`;
+  }
+
+  // 4. Pre-workout meal / what to eat before workout
+  if (msg.includes('before') || msg.includes('pre-workout') || msg.includes('pre workout') || msg.includes('prior to workout')) {
+    return `### ⚡ Pre-Workout Fueling Protocol
+
+What you eat before training determines your strength output, muscular stamina, and mental focus:
+
+#### 🕒 Timing Windows
+- **2 to 3 Hours Before:** Balanced meal containing complex carbs, lean protein, and low fat.
+  - *Example:* Grilled chicken breast or tofu, brown rice or sweet potato, steamed vegetables.
+- **45 to 60 Minutes Before:** Fast-acting carbs with moderate, easily digestible protein.
+  - *Example:* Oatmeal with half a scoop of whey, or 1 banana with 2 boiled egg whites.
+- **15 to 30 Minutes Before:** Simple fast carbs only if needed.
+  - *Example:* 1 banana or a handful of raisins/dates.
+
+#### 🚫 Foods to Avoid Immediately Before Gym:
+- Heavy deep-fried or high-fat foods (slows gastric emptying and causes sluggishness).
+- Excess cruciferous fiber (can cause bloating and abdominal discomfort during heavy bracing).`;
+  }
+
+  // 5. Post-workout meal / what to eat after workout
+  if (msg.includes('after') || msg.includes('post-workout') || msg.includes('post workout')) {
+    return `### 🔄 Post-Workout Recovery Blueprint
+
+Post-workout nutrition is designed to shift your body from a catabolic (breakdown) state into an anabolic (growth) state:
+
+#### 🎯 The Anabolic Formula: Protein + Carbohydrates
+- **Protein (25–35g):** Required to repair micro-tears in muscle fibers.
+  - *Top Choices:* Whey isolate, egg whites + whole egg, chicken breast, paneer/tofu, Greek yogurt.
+- **Carbohydrates (30–60g):** Replenishes muscle glycogen depleted during intense resistance training.
+  - *Top Choices:* White rice, baked potato, ripe bananas, dextrose/maltodextrin, whole oats.
+
+#### ⏱️ The Timing Window:
+Aim to eat within **45 to 90 minutes** post-training. While the "30-minute anabolic window" isn't as urgent as once thought, prompt fueling ensures optimal glycogen synthesis and reduces muscle soreness (DOMS).`;
+  }
+
+  // 6. Protein & Macro intake
+  if (msg.includes('protein') || msg.includes('macro') || msg.includes('calories') || msg.includes('chicken') || msg.includes('paneer')) {
+    return `### 🥩 Daily Protein & Macronutrient Strategy
+
+To build lean muscle and speed up recovery:
+
+#### 1. Daily Protein Target
+- **Optimal Range:** **1.6g to 2.2g of protein per kilogram of bodyweight** (0.8g–1.0g per lb).
+- *Example:* A 70kg (154 lbs) individual should aim for **110g to 140g of protein daily**.
+
+#### 2. Best Whole-Food Protein Sources
+| Source | Serving | Protein Content |
+| :--- | :--- | :--- |
+| **Chicken Breast** | 100g cooked | ~31g protein |
+| **Whole Eggs** | 2 large eggs | ~13g protein |
+| **Paneer / Cottage Cheese** | 100g | ~18g protein |
+| **Whey Protein** | 1 scoop (30g) | ~24g protein |
+| **Tofu / Soy Chunks** | 100g | ~15g–52g protein |
+| **Lentils / Chickpeas** | 1 cup cooked | ~18g protein |
+
+#### 3. Distribution
+Spread your protein evenly across **3 to 4 meals** (approx. 25–40g per meal) to maximize muscle protein synthesis throughout the day.`;
+  }
+
+  // 7. Creatine / Supplements
+  if (msg.includes('creatine') || msg.includes('supplement') || msg.includes('caffeine') || msg.includes('whey')) {
+    return `### 🧪 Evidence-Based Fitness Supplements
+
+For beginner to intermediate lifters, only a few supplements have proven gold-standard efficacy:
+
+1. **Creatine Monohydrate (5g daily):**
+   - The most scientifically validated sports supplement in existence.
+   - Increases intracellular phosphocreatine stores, giving you 1-2 extra reps on heavy compound lifts.
+   - *How to take:* 3–5g every day with water. No loading phase or cycling required.
+2. **Whey Protein:**
+   - Convenient high-bioavailability protein source to help you hit daily targets.
+3. **Caffeine (100–200mg, 30 min before gym):**
+   - Boosts central nervous system output, alertness, and power production.
+4. **Hydration / Electrolytes:**
+   - A pinch of salt in your pre-workout water can dramatically improve muscular pumps and hydration.`;
+  }
+
+  // 8. Bicep curl / arms
+  if (msg.includes('bicep') || msg.includes('curl') || msg.includes('arm')) {
+    return `### 💪 Bicep Growth & Form Mechanics
+
+To build peaked, well-developed biceps without elbow strain:
+
+#### 1. Form Execution
+- **Elbow Anchoring:** Pin your elbows slightly in front of your ribcage and keep them motionless. Do not swing your hips or use momentum.
+- **Supination:** As you curl the dumbbell, rotate your pinky finger upward toward your outer shoulder at the peak.
+- **Controlled Eccentric:** Take **2 to 3 seconds** to lower the weight. The lowering phase generates the highest micro-trauma for hypertrophy.
+
+#### 2. Complete Arm Routine
+- **Incline Dumbbell Curls:** 3 sets of 10–12 reps (targets the long head in a stretched position).
+- **Standing Barbell / EZ-Bar Curls:** 3 sets of 8–10 reps (primary overload movement).
+- **Hammer Curls:** 3 sets of 12 reps (targets the brachialis for arm thickness).`;
+  }
+
+  // 9. Squat form & lower body
+  if (msg.includes('squat') || msg.includes('leg') || msg.includes('lunge')) {
+    return `### 🦵 Squat & Lower Body Mastery
+
+#### 1. Five Checklist Steps for Proper Squats:
+1. **Foot Placement:** Shoulder-width apart, toes flared slightly outward (15–30°).
+2. **Brace Your Core:** Take a deep diaphragmatic breath into your belly and brace your abs like you're about to take a punch.
+3. **Hip Hinge Initiation:** Break at the hips and knees simultaneously. Push your knees out in the direction of your toes.
+4. **Depth:** Lower until your hip crease is level with or just below the top of your knee cap (parallel depth).
+5. **Ascent:** Drive through mid-foot and heel, keeping your chest proud and spine neutral.
+
+#### 2. Avoiding Common Mistakes:
+- Don't let your heels lift off the ground (elevate heels slightly on plates if ankle mobility is limited).
+- Avoid knee caving by actively pushing outward against the floor.`;
+  }
+
+  // 10. Push-up & Chest
+  if (msg.includes('pushup') || msg.includes('push up') || msg.includes('push-up') || msg.includes('chest') || msg.includes('bench')) {
+    return `### 🏋️ Chest & Push-Up Mechanics
+
+#### 1. Perfect Push-Up Form:
+- **Hand Width:** Just slightly wider than shoulder-width, fingers spread for maximum floor grip.
+- **Elbow Angle:** Keep elbows at roughly a **45-degree angle** to your torso (resembling an arrow 🏹, never a 'T' shape which strains shoulders).
+- **Plank Stability:** Squeeze your glutes, lock your quads, and pull your belly button toward your spine to maintain a rigid straight line.
+- **Range of Motion:** Lower down until your chest is 1 inch from the floor, then press to full lockout with active scapular protraction.
+
+#### 2. Progression for Beginners:
+- If standard push-ups are tough, start with **Incline Push-ups** (hands on an elevated bench) rather than knee push-ups to maintain proper core tension.`;
+  }
+
+  // 11. Weight loss / fat loss / cut
+  if (msg.includes('weight loss') || msg.includes('fat loss') || msg.includes('lose weight') || msg.includes('cutting') || msg.includes('belly fat')) {
+    return `### 🔥 Sustainable Fat Loss Blueprint
+
+Fat loss requires a disciplined, science-backed approach combining calorie balance, resistance training, and recovery:
+
+1. **Caloric Deficit:** Consume **300 to 500 kcal** below your Total Daily Energy Expenditure (TDEE). This produces steady loss of ~0.5kg (1 lb) per week while preserving muscle mass.
+2. **Lift Weights 3–4 Days/Week:** Lifting signals your body to burn stored adipose fat for fuel rather than breaking down muscle tissue.
+3. **High Protein Intake:** Consume at least **1.8g protein per kg of bodyweight**. Protein has the highest thermic effect of food (TEF) and keeps you satiated.
+4. **Non-Exercise Activity (NEAT):** Aim for **8,000 to 10,000 steps daily**. Daily walking burns more cumulative calories over a week than grueling HIIT sessions.`;
+  }
+
+  // 12. Beginner workout split / routine
+  if (msg.includes('split') || msg.includes('plan') || msg.includes('routine') || msg.includes('beginner') || msg.includes('schedule')) {
+    return `### 📅 Beginner Weekly Workout Architecture
+
+For anyone in their first 6–12 months of gym training, a **3-Day Full-Body Split** delivers the fastest strength gains and muscle growth:
+
+| Day | Focus | Core Exercises | Sets x Reps |
+| :--- | :--- | :--- | :--- |
+| **Monday** | Full Body (A) | Goblet Squat, DB Bench Press, Bent-over DB Row | 3 x 8-12 |
+| **Tuesday** | Rest / Recovery | 30 min walk, mobility stretches | Active Rest |
+| **Wednesday** | Full Body (B) | Romanian Deadlift, Overhead DB Press, Lat Pulldown | 3 x 8-12 |
+| **Thursday** | Rest / Recovery | Hydration, light core & foam rolling | Active Rest |
+| **Friday** | Full Body (C) | Walking Lunges, Push-ups, Bicep Curls, Plank | 3 x 10-15 |
+| **Weekend** | Rest / Fun | Outdoor activities, sports, recharge | Rest |
+
+*Key Principle: Aim for **Progressive Overload** by adding either 1 extra rep or slightly more weight each week while keeping strict form.*`;
+  }
+
+  // 13. Rest / Recovery / Soreness
+  if (msg.includes('rest') || msg.includes('recover') || msg.includes('sore') || msg.includes('sleep')) {
+    return `### 💤 Muscle Recovery & DOMS (Delayed Onset Muscle Soreness)
+
+Muscles are stimulated in the gym, but they actually grow and repair during rest:
+
+- **Sleep:** Aim for **7.5 to 9 hours** of quality sleep. Over 80% of natural Growth Hormone (GH) is released during slow-wave deep sleep.
+- **Handling Muscle Soreness:** Light active recovery (e.g. 20-minute walk, light stationary bike, dynamic stretching) increases blood flow to flush metabolic byproducts much faster than sitting still.
+- **Hydration:** Dehydrated muscles recover up to 50% slower. Drink **3 to 4 liters** of water daily, especially around workout hours.
+- **Rest Days:** Never train the exact same muscle group with high intensity on consecutive days. Give each muscle group **48 hours** before training it again.`;
+  }
+
+  // 14. Fallback contextual reply based on user's query
+  return `### 🏋️ Coach Guidance on "${rawMessage.trim().substring(0, 45)}"
+
+Great question! Here is personalized guidance based on your fitness goals:
+
+- **Consistency First:** Fitness results are built on repeating basic habits day after day. Focus on showing up regularly.
+- **Form Over Weight:** Always master the mechanics and range of motion before increasing resistance or volume.
+- **Nutrition Pairing:** Balance your daily intake with lean proteins, complex carbohydrates, and wholesome healthy fats.
+- **Progressive Overload:** Track your sets and reps so you can systematically challenge your muscles over time.
+
+*Would you like more details on exercise selection, specific meal recipes, or a customized weekly breakdown?*`;
+};
+
 // ─── AI Chat ─────────────────────────────────────────────────────────────────
 
 /**
@@ -43,45 +270,90 @@ const aiChat = [
         return res.status(400).json({ errors: errors.array() });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(503).json({
-          error: 'AI coaching is not configured. Please add GEMINI_API_KEY to the server environment.',
-          setupRequired: true,
-        });
-      }
-
       const { message, history = [] } = req.body;
 
-      // Only pass minimal, non-sensitive context
-      const userContext = {
-        fitnessLevel: req.user.fitnessLevel || 'beginner',
-        fitnessGoal: req.user.fitnessGoal || 'general fitness',
-      };
+      // 1. If Gemini API key is configured, use official Google Gemini API
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const userContext = {
+            fitnessLevel: req.user.fitnessLevel || 'beginner',
+            fitnessGoal: req.user.fitnessGoal || 'general fitness',
+          };
 
-      // Sanitize history - keep only role + content, limit content length
-      const sanitizedHistory = history
-        .filter((h) => h && ['user', 'model'].includes(h.role) && typeof h.content === 'string')
-        .slice(-10) // last 10 turns
-        .map((h) => ({ role: h.role, content: h.content.substring(0, 1000) }));
+          const sanitizedHistory = history
+            .filter((h) => h && ['user', 'model'].includes(h.role) && typeof h.content === 'string')
+            .slice(-10)
+            .map((h) => ({ role: h.role, content: h.content.substring(0, 1000) }));
 
-      const reply = await geminiService.chat(message, sanitizedHistory, userContext);
+          const reply = await geminiService.chat(message, sanitizedHistory, userContext);
+          return res.json({ reply, source: 'gemini-live' });
+        } catch (geminiError) {
+          console.warn('[Gemini Live Error, using intelligent coaching fallback]:', geminiError.message);
+          const reply = getFitnessCoachReply(message);
+          return res.json({ reply, source: 'fallback', warning: geminiError.message });
+        }
+      }
 
-      res.json({ reply });
+      // 2. If Gemini key not set, return specific contextual coaching response
+      const reply = getFitnessCoachReply(message);
+      return res.json({ reply, source: 'smart-coach' });
     } catch (error) {
-      if (error.message?.includes('not configured')) {
-        return res.status(503).json({
-          error: 'AI coaching is not available. GEMINI_API_KEY is not set.',
-          setupRequired: true,
-        });
-      }
-      if (error.message?.includes('quota') || error.status === 429) {
-        return res.status(429).json({ error: 'AI quota exceeded. Please try again later.' });
-      }
       console.error('[AI Chat]', error.message);
       next(error);
     }
   },
 ];
+
+/**
+ * @route POST /api/ai/set-key
+ * @desc  Configure and persist Google Gemini API Key
+ * @access Private
+ */
+const configureApiKey = async (req, res, next) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
+      return res.status(400).json({ error: 'Please provide a valid Gemini API key.' });
+    }
+
+    const cleanKey = apiKey.trim();
+    geminiService.setClientKey(cleanKey);
+
+    // Persist to server/.env
+    const envPath = path.resolve(__dirname, '../../.env');
+    try {
+      let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+      if (envContent.includes('GEMINI_API_KEY=')) {
+        envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${cleanKey}`);
+      } else {
+        envContent += `\nGEMINI_API_KEY=${cleanKey}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    } catch (fsErr) {
+      console.warn('Could not persist key to server/.env:', fsErr.message);
+    }
+
+    res.json({
+      success: true,
+      configured: true,
+      message: 'Google Gemini API key configured and activated successfully!',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @route GET /api/ai/status
+ * @desc  Check if Google Gemini API key is configured
+ * @access Private
+ */
+const getAiStatus = async (req, res) => {
+  res.json({
+    configured: Boolean(process.env.GEMINI_API_KEY),
+    model: 'gemini-3-flash-preview',
+  });
+};
 
 // ─── Weekly Plan Generation ───────────────────────────────────────────────────
 
@@ -277,4 +549,13 @@ const sessionSummary = [
   },
 ];
 
-module.exports = { aiChat, generatePlan, getCurrentPlan, getPlanHistory, updateDayStatus, sessionSummary };
+module.exports = {
+  aiChat,
+  generatePlan,
+  getCurrentPlan,
+  getPlanHistory,
+  updateDayStatus,
+  sessionSummary,
+  configureApiKey,
+  getAiStatus,
+};
