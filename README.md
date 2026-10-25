@@ -100,6 +100,27 @@
    - Pre-seeded database featuring 30+ categorized exercises with instructions, tips, target muscle groups, and difficulty ratings.
    - Real-time search and filter controls by muscle group and difficulty.
 
+7. **AI Workout Studio (Real-Time Vision & MediaPipe Pose Detection)**
+   - Real-time 33-landmark pose detection running completely in-browser via `@mediapipe/tasks-vision`.
+   - **100% Privacy-Preserving**: Camera video frames are processed locally inside client RAM and are **never** stored or transmitted to external servers.
+   - Intelligent biomechanical Finite State Machine (FSM) rep counters for **Squats, Push-ups, Bicep Curls, Jumping Jacks, and Lunges**.
+   - Live color-coded posture corrections (Good Form, Form Warning, Camera Alignment).
+   - Dynamic MET-based calorie expenditure computation updated in real time.
+   - Automatic session logging with summary modal and optional Gemini post-workout analysis.
+
+8. **AI Fitness Coach (Google Gemini Integration)**
+   - Interactive conversational fitness coach powered by official Google Gen AI SDK (`@google/genai`).
+   - Secure server-side API key architecture with per-user rate limiting and validation.
+   - Form corrections, progressive overload recommendations, injury prevention tips, and nutrition advice.
+
+9. **AI Weekly Routine Planner**
+   - Personalized 7-day workout routine generation based on user goals (hypertrophy, fat loss, endurance), experience level, and equipment access.
+   - Interactive calendar schedule with daily exercise circuits, warm-up routines, recovery days, and adherence completion tracking.
+
+10. **YouTube Exercise Recommendations**
+   - Direct integration with YouTube Data API v3 delivering form guides, technique breakdowns, and exercise demos.
+   - In-app responsive modal player with embedded video tutorials and automatic YouTube search fallback.
+
 ---
 
 ## 🗄 System Design & Entity Relationships

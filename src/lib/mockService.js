@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   GOALS: 'fitlife_db_goals',
   MEALS: 'fitlife_db_meals',
   EXERCISES: 'fitlife_db_exercises',
+  PLANS: 'fitlife_db_workout_plans',
   INITIALIZED: 'fitlife_db_initialized',
 };
 
@@ -628,6 +629,188 @@ export const handleMockRequest = async (config) => {
       return createMockSuccess({ exercise }, 200, config);
     }
     return createMockError(404, 'Exercise not found', config);
+  }
+
+  // 12. AI COACH (Gemini mock)
+  if (normalizedUrl === '/ai/coach' && method === 'post') {
+    const message = (body.message || '').toLowerCase();
+    let reply = `Great question! Consistency and proper form are the cornerstones of lasting fitness progress. When training, remember to focus on controlled eccentric movements, maintain full range of motion, and stay well hydrated. Is there a specific muscle group or exercise you'd like to refine today?`;
+
+    if (message.includes('squat')) {
+      reply = `**Squat Form Fundamentals:**\n1. **Stance:** Feet shoulder-width apart, toes flared slightly outward (15-30°).\n2. **Hips First:** Initiate the movement by sending your hips back, not bending your knees forward.\n3. **Knee Alignment:** Push your knees outward in line with your second toe.\n4. **Depth:** Aim for thighs parallel to the ground while keeping your chest proud and spine neutral.\n5. **Drive:** Push evenly through your mid-foot and heel on the way up.`;
+    } else if (message.includes('pushup') || message.includes('push up') || message.includes('push-up')) {
+      reply = `**Push-up Form Mastery:**\n1. **Hand Placement:** Just outside shoulder width, fingers spread.\n2. **Elbow Path:** Keep elbows tucked at approximately a 45° angle (arrow shape, not a 'T').\n3. **Core Tension:** Squeeze your glutes and brace your abs to prevent sagging hips.\n4. **Range:** Lower until your chest is 1-2 inches from the floor, then press back up fully without flaring your elbows.`;
+    } else if (message.includes('plan') || message.includes('routine') || message.includes('split')) {
+      reply = `**Recommended Weekly Structure:**\n- **3 Days:** Full Body (Mon / Wed / Fri) with 48h rest between sessions.\n- **4 Days:** Upper / Lower Split (Mon & Tue, Thu & Fri).\n- **Nutrition Tip:** Aim for 1.6-2.0g protein per kg of bodyweight to optimize muscular recovery.\n\nYou can also jump to our **AI Weekly Planner** in the sidebar to generate a custom routine!`;
+    } else if (message.includes('food') || message.includes('eat') || message.includes('diet') || message.includes('protein')) {
+      reply = `**Nutrition & Fueling Guidelines:**\n- **Pre-Workout (1-2h before):** Complex carbs + moderate protein (e.g., oatmeal with whey, or banana with peanut butter).\n- **Post-Workout (within 2h):** 25-35g fast-digesting protein with replenishing carbohydrates.\n- **Hydration:** Consume 500ml water before workout and sip 200ml every 15-20 minutes during training.`;
+    }
+
+    return createMockSuccess({ reply }, 200, config);
+  }
+
+  // 13. AI WEEKLY PLAN
+  if (normalizedUrl === '/ai/weekly-plan' && method === 'post') {
+    const daysPerWeek = Number(body.daysPerWeek) || 4;
+    const goal = body.goal || 'general_fitness';
+    const level = body.fitnessLevel || 'intermediate';
+
+    const defaultExercises = [
+      { name: 'Squats', sets: 4, reps: '10-12', rest: '60s', tips: 'Keep chest upright, knees tracked over toes' },
+      { name: 'Push-ups', sets: 3, reps: '12-15', rest: '45s', tips: 'Maintain tight core, elbows tucked at 45°' },
+      { name: 'Lunges', sets: 3, reps: '10 each side', rest: '60s', tips: 'Keep front knee behind toe line' },
+      { name: 'Plank Hold', sets: 3, reps: '45 seconds', rest: '30s', tips: 'Neutral spine, glutes squeezed tight' }
+    ];
+
+    const generatedDays = [];
+    for (let i = 0; i < 7; i++) {
+      const isRest = i >= daysPerWeek;
+      generatedDays.push({
+        dayNumber: i + 1,
+        focus: isRest ? 'Active Recovery & Stretching' : `Session ${i + 1}: ${goal.replace('_', ' ').toUpperCase()}`,
+        isRestDay: isRest,
+        duration: isRest ? '20 mins' : `${body.durationMinutes || 45} mins`,
+        completed: false,
+        warmup: isRest ? '5 min gentle dynamic stretching' : '5 mins arm circles, high knees, cat-cows',
+        exercises: isRest ? [] : defaultExercises,
+        cooldown: '5 mins hamstring, quad and chest stretching'
+      });
+    }
+
+    const newPlan = {
+      _id: 'plan_' + Date.now(),
+      user: currentId,
+      title: `${level.toUpperCase()} ${goal.replace(/_/g, ' ').toUpperCase()} Protocol`,
+      goal,
+      fitnessLevel: level,
+      daysPerWeek,
+      days: generatedDays,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const plans = getStored(STORAGE_KEYS.PLANS, []);
+    plans.unshift(newPlan);
+    setStored(STORAGE_KEYS.PLANS, plans);
+
+    return createMockSuccess({ plan: newPlan }, 201, config);
+  }
+
+  if (normalizedUrl === '/ai/weekly-plan/current' && method === 'get') {
+    const plans = getStored(STORAGE_KEYS.PLANS, []);
+    const userPlan = plans.find((p) => p.user === currentId) || plans[0];
+    if (userPlan) {
+      return createMockSuccess({ plan: userPlan }, 200, config);
+    }
+    return createMockSuccess({ plan: null }, 200, config);
+  }
+
+  const planDayMatch = normalizedUrl.match(/^\/ai\/weekly-plan\/([^/?]+)\/day\/(\d+)/);
+  if (planDayMatch && method === 'patch') {
+    const planId = planDayMatch[1];
+    const dayIndex = parseInt(planDayMatch[2], 10);
+    const plans = getStored(STORAGE_KEYS.PLANS, []);
+    const pIdx = plans.findIndex((p) => p._id === planId || planId === 'mock-id');
+    const targetIdx = pIdx !== -1 ? pIdx : 0;
+
+    if (plans[targetIdx]?.days?.[dayIndex]) {
+      plans[targetIdx].days[dayIndex].completed = !!body.completed;
+      setStored(STORAGE_KEYS.PLANS, plans);
+      return createMockSuccess({ plan: plans[targetIdx] }, 200, config);
+    }
+    return createMockSuccess({ success: true }, 200, config);
+  }
+
+  // 14. AI SESSION SUMMARY
+  if (normalizedUrl === '/ai/session-summary' && method === 'post') {
+    const reps = body.repCount || 0;
+    const ex = (body.exerciseName || 'workout').replace(/_/g, ' ');
+    return createMockSuccess({
+      summary: `Outstanding effort completing ${reps} reps of ${ex}! Your neuromuscular activation and pacing were consistent. Make sure to hydrate with at least 500ml water and stretch your active muscle groups for 5 minutes.`
+    }, 200, config);
+  }
+
+  // 15. YOUTUBE VIDEO SEARCH
+  if (normalizedUrl.startsWith('/videos/search') && method === 'get') {
+    const ex = (params.exercise || 'workout').toLowerCase();
+    let videoList = [];
+
+    if (ex.includes('squat')) {
+      videoList = [
+        {
+          id: '9b8Wd0wX5B0',
+          title: 'How To Squat Properly (Step by Step Guide)',
+          channelTitle: 'Squat University',
+          thumbnail: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=500&auto=format&fit=crop&q=60',
+          duration: '6:12',
+          level: 'All Levels'
+        },
+        {
+          id: 'aclHkVaku9U',
+          title: '3 Common Squat Mistakes and How to Fix Them',
+          channelTitle: 'Athlean-X',
+          thumbnail: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60',
+          duration: '8:45',
+          level: 'Beginner'
+        }
+      ];
+    } else if (ex.includes('push')) {
+      videoList = [
+        {
+          id: 'IODxDxX7oi4',
+          title: 'The Perfect Push Up | Do It Right!',
+          channelTitle: 'Calisthenicmovement',
+          thumbnail: 'https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=500&auto=format&fit=crop&q=60',
+          duration: '5:30',
+          level: 'Form Guide'
+        },
+        {
+          id: 'W4eW2M_H-pU',
+          title: 'Push-Up Form Mistakes Everyone Makes',
+          channelTitle: 'Fitness FAQs',
+          thumbnail: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&auto=format&fit=crop&q=60',
+          duration: '7:15',
+          level: 'Technique'
+        }
+      ];
+    } else if (ex.includes('curl')) {
+      videoList = [
+        {
+          id: 'ykJmrZ5v0Oo',
+          title: 'How To Bicep Curl For Maximum Growth',
+          channelTitle: 'Jeremy Ethier',
+          thumbnail: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&auto=format&fit=crop&q=60',
+          duration: '5:50',
+          level: 'Biceps'
+        }
+      ];
+    } else if (ex.includes('lunge')) {
+      videoList = [
+        {
+          id: 'QOVaHwm-Q6U',
+          title: 'How to Do Lunges Correctly to Prevent Knee Pain',
+          channelTitle: 'Bowflex',
+          thumbnail: 'https://images.unsplash.com/photo-1434682881908-b43d0467b798?w=500&auto=format&fit=crop&q=60',
+          duration: '4:20',
+          level: 'Lower Body'
+        }
+      ];
+    } else {
+      videoList = [
+        {
+          id: 'search-fallback',
+          title: `${params.exercise || 'Exercise'} Proper Form & Technique Tutorial`,
+          channelTitle: 'FitLife Video Library',
+          thumbnail: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60',
+          duration: '5:00',
+          isFallback: true,
+          url: `https://www.youtube.com/results?search_query=${encodeURIComponent((params.exercise || 'exercise') + ' proper form')}`,
+          level: 'Technique'
+        }
+      ];
+    }
+
+    return createMockSuccess({ videos: videoList }, 200, config);
   }
 
   return createMockError(404, `Endpoint ${method.toUpperCase()} ${normalizedUrl} not found`, config);

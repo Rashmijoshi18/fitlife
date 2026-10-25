@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
-import { Dumbbell, Target, Apple, Flame, Clock, TrendingUp, Plus, ArrowRight } from 'lucide-react';
+import { Dumbbell, Target, Apple, Flame, Clock, TrendingUp, Plus, ArrowRight, Camera, Sparkles, Calendar, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { format, parseISO } from 'date-fns';
@@ -77,20 +77,95 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="fade-in max-w-6xl mx-auto">
+    <div className="fade-in max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black">{greeting}, {user?.name?.split(' ')[0]} 👋</h1>
           <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>
             {format(new Date(), 'EEEE, MMMM d')} — Here's your fitness overview
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/workouts" className="btn btn-primary btn-sm">
+        <div className="flex items-center gap-2">
+          <Link to="/workout-studio" className="btn btn-primary btn-sm flex items-center gap-1.5 shadow-lg shadow-emerald-950/40">
+            <Camera size={15} /> AI Studio
+          </Link>
+          <Link to="/workouts" className="btn btn-secondary btn-sm flex items-center gap-1.5">
             <Plus size={15} /> Log Workout
           </Link>
         </div>
+      </div>
+
+      {/* AI Quick Actions Hub */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link
+          to="/workout-studio"
+          className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-gray-900 to-gray-900 border border-emerald-500/30 hover:border-emerald-400 transition-all duration-200 group flex items-start justify-between"
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <Camera size={16} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                MediaPipe AI
+              </span>
+            </div>
+            <h3 className="font-bold text-sm text-white mt-2.5 group-hover:text-emerald-400 transition-colors">
+              AI Workout Studio
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Live camera pose detection, automatic rep counting & posture corrections.
+            </p>
+          </div>
+          <ArrowRight size={16} className="text-gray-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all mt-1" />
+        </Link>
+
+        <Link
+          to="/ai-coach"
+          className="p-4 rounded-2xl bg-gradient-to-br from-purple-950/40 via-gray-900 to-gray-900 border border-purple-500/30 hover:border-purple-400 transition-all duration-200 group flex items-start justify-between"
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                <Sparkles size={16} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                Gemini 2.5
+              </span>
+            </div>
+            <h3 className="font-bold text-sm text-white mt-2.5 group-hover:text-purple-400 transition-colors">
+              Gemini Fitness Coach
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Ask fitness questions, get form tips, diet advice, and recovery guidance.
+            </p>
+          </div>
+          <ArrowRight size={16} className="text-gray-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all mt-1" />
+        </Link>
+
+        <Link
+          to="/weekly-planner"
+          className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/40 via-gray-900 to-gray-900 border border-blue-500/30 hover:border-blue-400 transition-all duration-200 group flex items-start justify-between"
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                <Calendar size={16} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                AI Routine
+              </span>
+            </div>
+            <h3 className="font-bold text-sm text-white mt-2.5 group-hover:text-blue-400 transition-colors">
+              Weekly Workout Plan
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              7-day personalized split with target muscle groups and video tutorials.
+            </p>
+          </div>
+          <ArrowRight size={16} className="text-gray-500 group-hover:text-blue-400 group-hover:translate-x-1 transition-all mt-1" />
+        </Link>
       </div>
 
       {/* Stat Cards */}

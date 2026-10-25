@@ -10,10 +10,16 @@
     "test": "jest --runInBand --forceExit --detectOpenHandles",
     "test:watch": "jest --watch"
   },
-  "keywords": ["fitness", "api", "express", "mongodb"],
+  "keywords": [
+    "fitness",
+    "api",
+    "express",
+    "mongodb"
+  ],
   "author": "FitLife",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^2.31.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
@@ -23,7 +29,8 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.3",
-    "morgan": "^1.12.1"
+    "morgan": "^1.12.1",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "jest": "^30.5.2",
@@ -32,7 +39,9 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/__tests__/**/*.test.js"],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
     "testTimeout": 30000
   }
 }

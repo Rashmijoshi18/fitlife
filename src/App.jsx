@@ -15,6 +15,9 @@ import ExercisesPage from './pages/ExercisesPage';
 import GoalsPage from './pages/GoalsPage';
 import NutritionPage from './pages/NutritionPage';
 import ProfilePage from './pages/ProfilePage';
+import WorkoutStudioPage from './pages/WorkoutStudioPage';
+import AiCoachPage from './pages/AiCoachPage';
+import WeeklyPlannerPage from './pages/WeeklyPlannerPage';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -45,6 +48,9 @@ const AppRoutes = () => (
 
     {/* Protected — inside app shell */}
     <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/workout-studio" element={<ProtectedRoute><AppLayout><WorkoutStudioPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/ai-coach" element={<ProtectedRoute><AppLayout><AiCoachPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/weekly-planner" element={<ProtectedRoute><AppLayout><WeeklyPlannerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/workouts" element={<ProtectedRoute><AppLayout><WorkoutsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/exercises" element={<ProtectedRoute><AppLayout><ExercisesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/goals" element={<ProtectedRoute><AppLayout><GoalsPage /></AppLayout></ProtectedRoute>} />

@@ -12,12 +12,16 @@ const exerciseRoutes = require('./routes/exercises');
 const goalRoutes = require('./routes/goals');
 const mealRoutes = require('./routes/meals');
 const progressRoutes = require('./routes/progress');
+const aiRoutes = require('./routes/ai');
+const videoRoutes = require('./routes/videos');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
 
 // Connect to database
-connectDB();
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 // Security middleware
 app.use(helmet());
@@ -81,6 +85,8 @@ app.use('/api/exercises', exerciseRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/meals', mealRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/videos', videoRoutes);
 
 // Error handlers
 app.use(notFound);

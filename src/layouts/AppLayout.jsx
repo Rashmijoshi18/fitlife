@@ -3,11 +3,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Dumbbell, Target, Apple, BookOpen, User,
-  LogOut, Menu, X, Zap, ChevronRight,
+  LogOut, Menu, X, Zap, ChevronRight, Camera, Sparkles, Calendar
 } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/workout-studio', label: 'AI Studio', icon: Camera, badge: 'Live AI' },
+  { path: '/ai-coach', label: 'AI Coach', icon: Sparkles, badge: 'Gemini' },
+  { path: '/weekly-planner', label: 'Weekly Plan', icon: Calendar },
   { path: '/workouts', label: 'Workouts', icon: Dumbbell },
   { path: '/exercises', label: 'Exercises', icon: BookOpen },
   { path: '/goals', label: 'Goals', icon: Target },
@@ -40,7 +43,7 @@ const AppLayout = ({ children }) => {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ path, label, icon: Icon }) => {
+        {navItems.map(({ path, label, icon: Icon, badge }) => {
           const active = location.pathname === path;
           return (
             <Link
@@ -55,8 +58,13 @@ const AppLayout = ({ children }) => {
               }}
             >
               <Icon size={17} />
-              {label}
-              {active && <ChevronRight size={14} className="ml-auto" />}
+              <span>{label}</span>
+              {badge && (
+                <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  {badge}
+                </span>
+              )}
+              {active && !badge && <ChevronRight size={14} className="ml-auto" />}
             </Link>
           );
         })}
