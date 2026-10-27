@@ -358,8 +358,12 @@ export const WorkoutStudio = () => {
       squats: { type: 'strength', muscleGroup: 'legs' },
       pushups: { type: 'strength', muscleGroup: 'chest' },
       bicep_curls: { type: 'strength', muscleGroup: 'biceps' },
+      shoulder_press: { type: 'strength', muscleGroup: 'shoulders' },
+      lateral_raises: { type: 'strength', muscleGroup: 'shoulders' },
       lunges: { type: 'strength', muscleGroup: 'legs' },
       jumping_jacks: { type: 'cardio', muscleGroup: 'full_body' },
+      high_knees: { type: 'hiit', muscleGroup: 'legs' },
+      glute_bridge: { type: 'strength', muscleGroup: 'glutes' },
     };
     const mapped = exerciseTypeMap[selectedExercise?.id] || { type: 'strength', muscleGroup: 'full_body' };
 

@@ -1,13 +1,110 @@
 import { useState } from 'react';
-import { Camera, Dumbbell, ChevronRight, Info, ArrowLeft, Play, Plus, Minus, Sparkles } from 'lucide-react';
+import {
+  Camera,
+  Dumbbell,
+  ChevronRight,
+  Info,
+  ArrowLeft,
+  Play,
+  Plus,
+  Minus,
+  Sparkles,
+  Footprints,
+  ShieldCheck,
+  ArrowUpCircle,
+  MoveHorizontal,
+  Target,
+  Zap,
+  Activity,
+  Layers,
+} from 'lucide-react';
 import { getCaloriesPerRep } from '../../lib/calorieEstimator';
 
-const muscleIcons = {
-  squats: '🦵',
-  pushups: '💪',
-  bicep_curls: '🏋️',
-  jumping_jacks: '⭐',
-  lunges: '🦵',
+export const EXERCISE_CONFIG = {
+  squats: {
+    icon: Footprints,
+    color: '#10b981', // Emerald
+    bg: 'rgba(16, 185, 129, 0.12)',
+    border: 'rgba(16, 185, 129, 0.25)',
+    tag: 'Legs & Glutes',
+  },
+  pushups: {
+    icon: ShieldCheck,
+    color: '#3b82f6', // Blue
+    bg: 'rgba(59, 130, 246, 0.12)',
+    border: 'rgba(59, 130, 246, 0.25)',
+    tag: 'Chest & Core',
+  },
+  bicep_curls: {
+    icon: Dumbbell,
+    color: '#a855f7', // Purple
+    bg: 'rgba(168, 85, 247, 0.12)',
+    border: 'rgba(168, 85, 247, 0.25)',
+    tag: 'Arms & Biceps',
+  },
+  shoulder_press: {
+    icon: ArrowUpCircle,
+    color: '#f59e0b', // Amber
+    bg: 'rgba(245, 158, 11, 0.12)',
+    border: 'rgba(245, 158, 11, 0.25)',
+    tag: 'Deltoids & Shoulders',
+  },
+  lateral_raises: {
+    icon: MoveHorizontal,
+    color: '#ec4899', // Pink
+    bg: 'rgba(236, 72, 153, 0.12)',
+    border: 'rgba(236, 72, 153, 0.25)',
+    tag: 'Side Delts',
+  },
+  lunges: {
+    icon: Target,
+    color: '#06b6d4', // Cyan
+    bg: 'rgba(6, 182, 212, 0.12)',
+    border: 'rgba(6, 182, 212, 0.25)',
+    tag: 'Quads & Balance',
+  },
+  jumping_jacks: {
+    icon: Zap,
+    color: '#eab308', // Yellow
+    bg: 'rgba(234, 179, 8, 0.12)',
+    border: 'rgba(234, 179, 8, 0.25)',
+    tag: 'Cardio & Agility',
+  },
+  high_knees: {
+    icon: Activity,
+    color: '#f97316', // Orange
+    bg: 'rgba(249, 115, 22, 0.12)',
+    border: 'rgba(249, 115, 22, 0.25)',
+    tag: 'HIIT & Core',
+  },
+  glute_bridge: {
+    icon: Layers,
+    color: '#14b8a6', // Teal
+    bg: 'rgba(20, 184, 166, 0.12)',
+    border: 'rgba(20, 184, 166, 0.25)',
+    tag: 'Glutes & Posterior',
+  },
+};
+
+const renderExerciseIcon = (exerciseId, size = 22, containerClass = "w-12 h-12 rounded-xl") => {
+  const config = EXERCISE_CONFIG[exerciseId] || {
+    icon: Activity,
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    border: 'rgba(16, 185, 129, 0.25)',
+  };
+  const IconComponent = config.icon;
+  return (
+    <div
+      className={`${containerClass} flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm`}
+      style={{
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+      }}
+    >
+      <IconComponent size={size} style={{ color: config.color }} strokeWidth={2.2} />
+    </div>
+  );
 };
 
 const difficultyColors = {
@@ -29,8 +126,9 @@ export const ExerciseSelector = ({ exercises, onSelect, userWeight = 70 }) => {
   const [dumbbellWeight, setDumbbellWeight] = useState(5); // default 5kg
 
   const handleExerciseClick = (exercise) => {
-    // If bicep curls, default to 5kg; if pushups or jumping jacks, default to 0kg; squats to 5kg
-    const defaultWeight = exercise.id === 'pushups' || exercise.id === 'jumping_jacks' ? 0 : 5;
+    // Bodyweight exercises default to 0kg; weighted upper/lower body default to 5kg
+    const bodyweightOnly = ['pushups', 'jumping_jacks', 'high_knees', 'glute_bridge'].includes(exercise.id);
+    const defaultWeight = bodyweightOnly ? 0 : 5;
     setDumbbellWeight(defaultWeight);
     setSelectedExercise(exercise);
   };
@@ -63,9 +161,7 @@ export const ExerciseSelector = ({ exercises, onSelect, userWeight = 70 }) => {
         {/* Selected Exercise Banner */}
         <div className="card p-6 border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 via-gray-900 to-gray-900">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl">
-              {muscleIcons[selectedExercise.id] || '🏃'}
-            </div>
+            {renderExerciseIcon(selectedExercise.id, 28, 'w-14 h-14 rounded-2xl')}
             <div className="flex-1 min-w-0">
               <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                 Step 2 of 2: Setup Dumbbells
@@ -225,51 +321,62 @@ export const ExerciseSelector = ({ exercises, onSelect, userWeight = 70 }) => {
 
       {/* Exercise grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {exercises.map((exercise) => (
-          <button
-            key={exercise.id}
-            onClick={() => handleExerciseClick(exercise)}
-            className="card text-left hover:border-emerald-500 transition-all group relative overflow-hidden"
-            style={{ padding: '1.25rem', cursor: 'pointer' }}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-3xl">{muscleIcons[exercise.id] || '🏃'}</span>
-              <div className="flex items-center gap-1 text-xs text-emerald-400 font-semibold group-hover:translate-x-0.5 transition-transform">
-                <span>Setup & Start</span>
-                <ChevronRight size={16} />
+        {exercises.map((exercise) => {
+          const config = EXERCISE_CONFIG[exercise.id];
+          return (
+            <button
+              key={exercise.id}
+              onClick={() => handleExerciseClick(exercise)}
+              className="card text-left hover:border-emerald-500/80 transition-all group relative overflow-hidden"
+              style={{ padding: '1.25rem', cursor: 'pointer' }}
+            >
+              <div className="flex items-start justify-between mb-3">
+                {renderExerciseIcon(exercise.id, 22, 'w-12 h-12 rounded-xl')}
+                <div className="flex items-center gap-1 text-xs text-emerald-400 font-semibold group-hover:translate-x-0.5 transition-transform">
+                  <span>Setup & Start</span>
+                  <ChevronRight size={16} />
+                </div>
               </div>
-            </div>
 
-            <h3 className="font-bold text-lg mb-1">{exercise.name}</h3>
+              <h3 className="font-bold text-lg mb-1">{exercise.name}</h3>
 
-            <div className="flex items-center gap-2 mb-3">
-              <span className="badge" style={{
-                background: `${difficultyColors.beginner}20`,
-                color: difficultyColors.beginner,
-              }}>
-                {difficultyLabel.beginner}
-              </span>
-            </div>
-
-            <div className="flex items-start gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              <Dumbbell size={12} className="shrink-0 mt-0.5" />
-              <span>{exercise.cameraGuidance}</span>
-            </div>
-
-            <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
-              <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-subtle)' }}>
-                Tracked phases:
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {exercise.phases.map((phase) => (
-                  <span key={phase} className="badge badge-gray capitalize" style={{ fontSize: '0.65rem' }}>
-                    {phase}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="badge" style={{
+                  background: `${difficultyColors.beginner}20`,
+                  color: difficultyColors.beginner,
+                }}>
+                  {difficultyLabel.beginner}
+                </span>
+                {config?.tag && (
+                  <span
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: config.bg, color: config.color, border: `1px solid ${config.border}` }}
+                  >
+                    {config.tag}
                   </span>
-                ))}
+                )}
               </div>
-            </div>
-          </button>
-        ))}
+
+              <div className="flex items-start gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <Camera size={13} className="shrink-0 mt-0.5 text-gray-400" />
+                <span>{exercise.cameraGuidance}</span>
+              </div>
+
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-subtle)' }}>
+                  Tracked phases:
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {exercise.phases.map((phase) => (
+                    <span key={phase} className="badge badge-gray capitalize" style={{ fontSize: '0.65rem' }}>
+                      {phase}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

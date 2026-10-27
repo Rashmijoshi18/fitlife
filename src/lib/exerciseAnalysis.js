@@ -637,11 +637,302 @@ class LungeAnalyzer extends BaseAnalyzer {
   }
 }
 
+// ─── Shoulder Press Analyzer ──────────────────────────────────────────────────
+/**
+ * Camera position: front view.
+ * Key angles: elbow angle (shoulder-elbow-wrist).
+ * FSM: bottom (elbows bent at ear level) → pressing → lockout (elbow > 155°) → lowering → bottom
+ */
+class ShoulderPressAnalyzer extends BaseAnalyzer {
+  constructor() {
+    super();
+    this.phase = 'bottom';
+  }
+
+  static BOTTOM_ANGLE = 95;
+  static LOCKOUT_ANGLE = 155;
+  static PRESS_TRIGGER = 110;
+  static LOWER_TRIGGER = 140;
+
+  analyze(landmarks) {
+    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.35);
+    const leftElbow = getLandmark(landmarks, LM.LEFT_ELBOW, 0.35);
+    const leftWrist = getLandmark(landmarks, LM.LEFT_WRIST, 0.35);
+
+    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.35);
+    const rightElbow = getLandmark(landmarks, LM.RIGHT_ELBOW, 0.35);
+    const rightWrist = getLandmark(landmarks, LM.RIGHT_WRIST, 0.35);
+
+    const leftVis = !!(leftShoulder && leftElbow && leftWrist);
+    const rightVis = !!(rightShoulder && rightElbow && rightWrist);
+
+    if (!leftVis && !rightVis) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      this.feedback = ['Face the camera with your upper body and arms visible.'];
+      return this.getState();
+    }
+
+    const aL = leftVis ? computeAngle(leftShoulder, leftElbow, leftWrist) : null;
+    const aR = rightVis ? computeAngle(rightShoulder, rightElbow, rightWrist) : null;
+
+    let rawAngle = null;
+    if (aL !== null && aR !== null) {
+      rawAngle = (aL + aR) / 2;
+    } else {
+      rawAngle = aL ?? aR;
+    }
+
+    if (rawAngle === null) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      return this.getState();
+    }
+
+    const angle = this.smooth('elbow', rawAngle);
+
+    const wristsAboveShoulders =
+      (leftWrist && leftShoulder && leftWrist.y < leftShoulder.y) ||
+      (rightWrist && rightShoulder && rightWrist.y < rightShoulder.y);
+
+    if (this.phase === 'bottom' && angle > ShoulderPressAnalyzer.PRESS_TRIGGER && wristsAboveShoulders) {
+      this.phase = 'pressing';
+    } else if (this.phase === 'pressing' && angle >= ShoulderPressAnalyzer.LOCKOUT_ANGLE) {
+      this.phase = 'lockout';
+    } else if (this.phase === 'lockout' && angle < ShoulderPressAnalyzer.LOWER_TRIGGER) {
+      this.phase = 'lowering';
+    } else if (this.phase === 'lowering' && angle <= ShoulderPressAnalyzer.BOTTOM_ANGLE) {
+      this.phase = 'bottom';
+      this.countRep();
+    }
+
+    const feedbackList = [];
+    let quality = FORM_QUALITY.GOOD;
+
+    if (this.phase === 'lockout') {
+      feedbackList.push('Full overhead extension — excellent lockout!');
+    } else if (this.phase === 'pressing') {
+      feedbackList.push('Drive dumbbells straight up.');
+    } else {
+      feedbackList.push('Lower dumbbells smoothly to shoulder level.');
+    }
+
+    this.formQuality = quality;
+    this.feedback = feedbackList.slice(0, 2);
+    return this.getState();
+  }
+}
+
+// ─── Lateral Raise Analyzer ───────────────────────────────────────────────────
+/**
+ * Camera position: front view.
+ * Key angles: torso-to-arm abduction angle (hip-shoulder-elbow).
+ * FSM: bottom (arms at sides < 30°) → raising → top (arms parallel to floor > 75°) → lowering → bottom
+ */
+class LateralRaiseAnalyzer extends BaseAnalyzer {
+  constructor() {
+    super();
+    this.phase = 'bottom';
+  }
+
+  static BOTTOM_ANGLE = 30;
+  static TOP_ANGLE = 75;
+
+  analyze(landmarks) {
+    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.35);
+    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.35);
+    const leftElbow = getLandmark(landmarks, LM.LEFT_ELBOW, 0.35);
+
+    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.35);
+    const rightElbow = getLandmark(landmarks, LM.RIGHT_ELBOW, 0.35);
+
+    const leftVis = !!(leftHip && leftShoulder && leftElbow);
+    const rightVis = !!(rightHip && rightShoulder && rightElbow);
+
+    if (!leftVis && !rightVis) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      this.feedback = ['Face camera with both arms and hips clearly visible.'];
+      return this.getState();
+    }
+
+    const aL = leftVis ? computeAngle(leftHip, leftShoulder, leftElbow) : null;
+    const aR = rightVis ? computeAngle(rightHip, rightShoulder, rightElbow) : null;
+
+    let rawAngle = null;
+    if (aL !== null && aR !== null) {
+      rawAngle = (aL + aR) / 2;
+    } else {
+      rawAngle = aL ?? aR;
+    }
+
+    if (rawAngle === null) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      return this.getState();
+    }
+
+    const angle = this.smooth('abduction', rawAngle);
+
+    if (this.phase === 'bottom' && angle > 40) {
+      this.phase = 'raising';
+    } else if (this.phase === 'raising' && angle >= LateralRaiseAnalyzer.TOP_ANGLE) {
+      this.phase = 'top';
+    } else if (this.phase === 'top' && angle < 65) {
+      this.phase = 'lowering';
+    } else if (this.phase === 'lowering' && angle <= LateralRaiseAnalyzer.BOTTOM_ANGLE) {
+      this.phase = 'bottom';
+      this.countRep();
+    }
+
+    const feedbackList = [];
+    let quality = FORM_QUALITY.GOOD;
+
+    if (angle > 105) {
+      feedbackList.push("Control the top — don't swing past shoulder height.");
+      quality = FORM_QUALITY.NEEDS_IMPROVEMENT;
+    } else if (this.phase === 'top') {
+      feedbackList.push('Great shoulder elevation — lower slowly!');
+    } else {
+      feedbackList.push('Slight bend in elbows throughout.');
+    }
+
+    this.formQuality = quality;
+    this.feedback = feedbackList.slice(0, 2);
+    return this.getState();
+  }
+}
+
+// ─── High Knees Analyzer ──────────────────────────────────────────────────────
+/**
+ * Camera position: front view.
+ * Key metric: knee elevation relative to hip level.
+ * FSM: alternating knee lifts to hip height.
+ */
+class HighKneesAnalyzer extends BaseAnalyzer {
+  constructor() {
+    super();
+    this.phase = 'down';
+    this.lastLeg = null;
+  }
+
+  analyze(landmarks) {
+    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.35);
+    const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.35);
+    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.35);
+
+    if (!leftHip || !rightHip || !leftKnee || !rightKnee) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      this.feedback = ['Step back so both hips and legs are visible.'];
+      return this.getState();
+    }
+
+    const leftLifted = leftKnee.y < leftHip.y + 0.08;
+    const rightLifted = rightKnee.y < rightHip.y + 0.08;
+
+    if (this.phase === 'down') {
+      if (leftLifted && this.lastLeg !== 'left') {
+        this.phase = 'up_left';
+        this.lastLeg = 'left';
+        this.countRep();
+      } else if (rightLifted && this.lastLeg !== 'right') {
+        this.phase = 'up_right';
+        this.lastLeg = 'right';
+        this.countRep();
+      }
+    } else if (this.phase === 'up_left' && !leftLifted) {
+      this.phase = 'down';
+    } else if (this.phase === 'up_right' && !rightLifted) {
+      this.phase = 'down';
+    }
+
+    const feedbackList = [];
+    if (this.phase !== 'down') {
+      feedbackList.push('Explosive knee drive! Maintain quick tempo.');
+    } else {
+      feedbackList.push('Drive knees up to hip level.');
+    }
+
+    this.formQuality = FORM_QUALITY.GOOD;
+    this.feedback = feedbackList.slice(0, 2);
+    return this.getState();
+  }
+}
+
+// ─── Glute Bridge Analyzer ────────────────────────────────────────────────────
+/**
+ * Camera position: side view on floor/mat.
+ * Key angle: hip angle (shoulder-hip-knee).
+ * FSM: bottom (hips down) → driving → top (hips locked out in straight line) → lowering → bottom
+ */
+class GluteBridgeAnalyzer extends BaseAnalyzer {
+  constructor() {
+    super();
+    this.phase = 'bottom';
+  }
+
+  static BOTTOM_ANGLE = 135;
+  static TOP_ANGLE = 165;
+
+  analyze(landmarks) {
+    const leftShoulder = getLandmark(landmarks, LM.LEFT_SHOULDER, 0.35);
+    const leftHip = getLandmark(landmarks, LM.LEFT_HIP, 0.35);
+    const leftKnee = getLandmark(landmarks, LM.LEFT_KNEE, 0.35);
+
+    const rightShoulder = getLandmark(landmarks, LM.RIGHT_SHOULDER, 0.35);
+    const rightHip = getLandmark(landmarks, LM.RIGHT_HIP, 0.35);
+    const rightKnee = getLandmark(landmarks, LM.RIGHT_KNEE, 0.35);
+
+    const leftVis = !!(leftShoulder && leftHip && leftKnee);
+    const rightVis = !!(rightShoulder && rightHip && rightKnee);
+
+    if (!leftVis && !rightVis) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      this.feedback = ['Lie sideways on a mat with shoulders, hips, and knees in view.'];
+      return this.getState();
+    }
+
+    const aL = leftVis ? computeAngle(leftShoulder, leftHip, leftKnee) : null;
+    const aR = rightVis ? computeAngle(rightShoulder, rightHip, rightKnee) : null;
+
+    let hipAngle = aL ?? aR;
+    if (aL !== null && aR !== null) hipAngle = Math.max(aL, aR);
+
+    if (hipAngle === null) {
+      this.formQuality = FORM_QUALITY.UNABLE;
+      return this.getState();
+    }
+
+    const angle = this.smooth('bridgeHip', hipAngle);
+
+    if (this.phase === 'bottom' && angle > 145) {
+      this.phase = 'driving';
+    } else if (this.phase === 'driving' && angle >= GluteBridgeAnalyzer.TOP_ANGLE) {
+      this.phase = 'top';
+    } else if (this.phase === 'top' && angle < 155) {
+      this.phase = 'lowering';
+    } else if (this.phase === 'lowering' && angle <= GluteBridgeAnalyzer.BOTTOM_ANGLE) {
+      this.phase = 'bottom';
+      this.countRep();
+    }
+
+    const feedbackList = [];
+    if (this.phase === 'top') {
+      feedbackList.push('Full hip extension — squeeze your glutes!');
+    } else {
+      feedbackList.push('Drive through your heels to raise hips.');
+    }
+
+    this.formQuality = FORM_QUALITY.GOOD;
+    this.feedback = feedbackList.slice(0, 2);
+    return this.getState();
+  }
+}
+
 // ─── Exercise Registry ────────────────────────────────────────────────────────
 export const EXERCISES = [
   {
     id: 'squats',
     name: 'Squats',
+    muscleGroup: 'legs',
     cameraGuidance: 'Stand 2–3m away. Camera at hip height, side or slight front angle.',
     keyLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
     phases: ['standing', 'descending', 'bottom', 'ascending'],
@@ -650,6 +941,7 @@ export const EXERCISES = [
   {
     id: 'pushups',
     name: 'Push-ups',
+    muscleGroup: 'chest',
     cameraGuidance: 'Place camera at floor level, 1–2m away from your side.',
     keyLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.LEFT_HIP, LM.LEFT_ANKLE],
     phases: ['up', 'descending', 'bottom', 'ascending'],
@@ -658,26 +950,65 @@ export const EXERCISES = [
   {
     id: 'bicep_curls',
     name: 'Bicep Curls',
+    muscleGroup: 'biceps',
     cameraGuidance: 'Stand facing the camera, 1.5–2m away. Keep elbows visible.',
     keyLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST],
     phases: ['extended', 'flexing', 'curled', 'extending'],
     Analyzer: BicepCurlAnalyzer,
   },
   {
+    id: 'shoulder_press',
+    name: 'Shoulder Press',
+    muscleGroup: 'shoulders',
+    cameraGuidance: 'Stand or sit facing camera, 1.5–2m away. Keep arms and head in frame.',
+    keyLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST],
+    phases: ['bottom', 'pressing', 'lockout', 'lowering'],
+    Analyzer: ShoulderPressAnalyzer,
+  },
+  {
+    id: 'lateral_raises',
+    name: 'Lateral Raises',
+    muscleGroup: 'shoulders',
+    cameraGuidance: 'Stand facing camera, 2m away. Ensure full arm width is in view.',
+    keyLandmarks: [LM.LEFT_HIP, LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_HIP, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW],
+    phases: ['bottom', 'raising', 'top', 'lowering'],
+    Analyzer: LateralRaiseAnalyzer,
+  },
+  {
+    id: 'lunges',
+    name: 'Lunges',
+    muscleGroup: 'legs',
+    cameraGuidance: 'Stand sideways to camera, 2–3m away. Keep both legs in frame.',
+    keyLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
+    phases: ['standing', 'descending', 'bottom', 'ascending'],
+    Analyzer: LungeAnalyzer,
+  },
+  {
     id: 'jumping_jacks',
     name: 'Jumping Jacks',
+    muscleGroup: 'full_body',
     cameraGuidance: 'Face the camera, 2–3m away. Ensure full body is visible.',
     keyLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_WRIST, LM.RIGHT_WRIST, LM.LEFT_ANKLE, LM.RIGHT_ANKLE],
     phases: ['closed', 'opening', 'open', 'closing'],
     Analyzer: JumpingJacksAnalyzer,
   },
   {
-    id: 'lunges',
-    name: 'Lunges',
-    cameraGuidance: 'Stand sideways to camera, 2–3m away. Keep both legs in frame.',
-    keyLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
-    phases: ['standing', 'descending', 'bottom', 'ascending'],
-    Analyzer: LungeAnalyzer,
+    id: 'high_knees',
+    name: 'High Knees',
+    muscleGroup: 'legs',
+    cameraGuidance: 'Face camera 2–3m away. Ensure hips and legs are fully visible.',
+    keyLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.RIGHT_HIP, LM.RIGHT_KNEE],
+    phases: ['down', 'up_left', 'up_right'],
+    Analyzer: HighKneesAnalyzer,
+  },
+  {
+    id: 'glute_bridge',
+    name: 'Glute Bridge',
+    muscleGroup: 'glutes',
+    cameraGuidance: 'Lie sideways on a mat, 1.5–2m away. Keep torso and knees in frame.',
+    keyLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE, LM.RIGHT_SHOULDER, LM.RIGHT_HIP, LM.RIGHT_KNEE],
+    phases: ['bottom', 'driving', 'top', 'lowering'],
+    Analyzer: GluteBridgeAnalyzer,
   },
 ];
 

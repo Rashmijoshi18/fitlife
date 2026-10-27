@@ -19,8 +19,12 @@ const MET_VALUES = {
   squats: { beginner: 5.0, intermediate: 6.0, advanced: 7.0 },
   pushups: { beginner: 4.8, intermediate: 6.0, advanced: 7.5 },
   bicep_curls: { beginner: 3.8, intermediate: 4.8, advanced: 5.8 },
-  jumping_jacks: { beginner: 7.5, intermediate: 8.5, advanced: 10.0 },
+  shoulder_press: { beginner: 4.5, intermediate: 5.8, advanced: 7.2 },
+  lateral_raises: { beginner: 3.8, intermediate: 5.0, advanced: 6.2 },
   lunges: { beginner: 5.2, intermediate: 6.5, advanced: 7.8 },
+  jumping_jacks: { beginner: 7.5, intermediate: 8.5, advanced: 10.0 },
+  high_knees: { beginner: 8.0, intermediate: 9.5, advanced: 11.0 },
+  glute_bridge: { beginner: 4.2, intermediate: 5.2, advanced: 6.5 },
   default: { beginner: 4.8, intermediate: 6.0, advanced: 7.2 },
 };
 
@@ -44,6 +48,18 @@ const EXERCISE_BIOMECHANICS = {
     dumbbellMultiplier: 2,       // Pair of dumbbells curled
     baseRepKcal: 0.22,
   },
+  shoulder_press: {
+    fractionOfBodyweight: 0.10, // Arms & hands lifted overhead
+    displacementMeters: 0.50,    // Overhead vertical travel
+    dumbbellMultiplier: 2,       // Pair of dumbbells pressed overhead
+    baseRepKcal: 0.35,
+  },
+  lateral_raises: {
+    fractionOfBodyweight: 0.08, // Arms abducted
+    displacementMeters: 0.40,    // Shoulder level raise
+    dumbbellMultiplier: 2,       // Pair of dumbbells raised
+    baseRepKcal: 0.25,
+  },
   lunges: {
     fractionOfBodyweight: 0.70, // Body mass lifted per lunge drive
     displacementMeters: 0.45,    // Vertical displacement
@@ -55,6 +71,18 @@ const EXERCISE_BIOMECHANICS = {
     displacementMeters: 0.15,    // Hop height
     dumbbellMultiplier: 2,       // Light hand weights if used
     baseRepKcal: 0.25,
+  },
+  high_knees: {
+    fractionOfBodyweight: 0.85,  // Ballistic running knee drive
+    displacementMeters: 0.25,    // Knee travel
+    dumbbellMultiplier: 2,       // Hand weights if used
+    baseRepKcal: 0.28,
+  },
+  glute_bridge: {
+    fractionOfBodyweight: 0.60,  // Pelvis & torso drive
+    displacementMeters: 0.30,    // Vertical travel
+    dumbbellMultiplier: 1,       // Weighted plate/dumbbell on hips
+    baseRepKcal: 0.38,
   },
 };
 
