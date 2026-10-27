@@ -41,6 +41,8 @@ export const WorkoutStudio = () => {
 
   const [session, setSession] = useState(SESSION.IDLE);
   const [selectedExercise, setSelectedExercise] = useState(null);
+  const [dumbbellWeightKg, setDumbbellWeightKg] = useState(0);
+  const dumbbellWeightKgRef = useRef(0);
   const [cameraError, setCameraError] = useState(null);
   const [modelError, setModelError] = useState(null);
   const [poseState, setPoseState] = useState({ repCount: 0, phase: 'waiting', formQuality: FORM_QUALITY.UNABLE, feedback: [] });
@@ -179,12 +181,15 @@ export const WorkoutStudio = () => {
           const state = analyzerRef.current.analyze(mirroredLandmarks);
           setPoseState({ ...state });
 
-          // Update calorie estimate
+          // Update calorie estimate with live reps, active time, and dumbbell weight
           const cal = estimateCalories({
             exerciseId: selectedExercise?.id,
             activeDurationSeconds: activeSecondsRef.current,
             bodyWeightKg: user?.weight || 70,
+            dumbbellWeightKg: dumbbellWeightKgRef.current,
+            totalReps: state.repCount || 0,
             fitnessLevel: user?.fitnessLevel || 'beginner',
+            formQuality: state.formQuality,
           });
           setCalories(cal.estimatedCalories);
         }
@@ -211,9 +216,12 @@ export const WorkoutStudio = () => {
     animFrameRef.current = requestAnimationFrame(detect);
   }, [selectedExercise, user]);
 
-  // Request camera and start detection
-  const startWorkout = useCallback(async (exercise) => {
+  // Request camera and start detection with chosen exercise & dumbbell weight
+  const startWorkout = useCallback(async (exercise, weightKg = 0) => {
     setSelectedExercise(exercise);
+    const parsedWeight = Math.max(0, Math.min(100, Number(weightKg) || 0));
+    setDumbbellWeightKg(parsedWeight);
+    dumbbellWeightKgRef.current = parsedWeight;
     setSession(SESSION.LOADING);
     setCameraError(null);
     setModelError(null);
@@ -330,50 +338,72 @@ export const WorkoutStudio = () => {
     pauseTimer();
 
     const finalSeconds = activeSecondsRef.current;
+    const totalReps = analyzerRef.current?.repCount || 0;
+    const finalWeight = dumbbellWeightKgRef.current;
     const finalCal = estimateCalories({
       exerciseId: selectedExercise?.id,
       activeDurationSeconds: finalSeconds,
       bodyWeightKg: user?.weight || 70,
+      dumbbellWeightKg: finalWeight,
+      totalReps,
       fitnessLevel: user?.fitnessLevel || 'beginner',
+      formQuality: analyzerRef.current?.formQuality || FORM_QUALITY.UNABLE,
     });
+
+    const durationMinutes = Math.max(1, Math.ceil(finalSeconds / 60));
+    const caloriesBurned = Math.max(1, finalCal.estimatedCalories);
+
+    // Map exercise to appropriate workout type and muscle group
+    const exerciseTypeMap = {
+      squats: { type: 'strength', muscleGroup: 'legs' },
+      pushups: { type: 'strength', muscleGroup: 'chest' },
+      bicep_curls: { type: 'strength', muscleGroup: 'biceps' },
+      lunges: { type: 'strength', muscleGroup: 'legs' },
+      jumping_jacks: { type: 'cardio', muscleGroup: 'full_body' },
+    };
+    const mapped = exerciseTypeMap[selectedExercise?.id] || { type: 'strength', muscleGroup: 'full_body' };
 
     const summary = {
       exerciseName: selectedExercise?.name || 'Workout',
       exerciseId: selectedExercise?.id,
-      totalReps: analyzerRef.current?.repCount || 0,
+      totalReps,
+      dumbbellWeightKg: finalWeight,
       activeDurationSeconds: Math.floor(finalSeconds),
-      activeDurationMinutes: Math.round(finalSeconds / 60),
-      estimatedCalories: finalCal.estimatedCalories,
+      activeDurationMinutes: durationMinutes,
+      estimatedCalories: caloriesBurned,
       formQuality: analyzerRef.current?.formQuality || FORM_QUALITY.UNABLE,
+      saved: false,
     };
 
-    setSummaryData(summary);
-
-    // Save to MongoDB workout history
-    if (Math.floor(finalSeconds) >= 60) {
+    // Automatically log workout activity to user's history if any reps or 5+ seconds performed
+    if (totalReps > 0 || finalSeconds >= 5) {
       try {
         await api.post('/workouts', {
           title: `AI Studio: ${selectedExercise?.name}`,
-          duration: Math.max(1, Math.round(finalSeconds / 60)),
-          caloriesBurned: finalCal.estimatedCalories,
-          type: 'other',
+          duration: durationMinutes,
+          caloriesBurned,
+          type: mapped.type,
           exercises: [{
             exerciseName: selectedExercise?.name,
+            muscleGroup: mapped.muscleGroup,
             sets: [{
               setNumber: 1,
-              reps: analyzerRef.current?.repCount || 0,
+              reps: totalReps,
+              weight: finalWeight,
               duration: Math.floor(finalSeconds),
             }],
           }],
-          notes: `AI-tracked session. Estimated ${finalCal.estimatedCalories} kcal burned.`,
+          notes: `AI Studio tracked session. ${totalReps} reps completed with ${summary.formQuality}${finalWeight > 0 ? ` (${finalWeight} kg dumbbells)` : ' (bodyweight)'}.`,
           isCompleted: true,
         });
-        toast.success('Workout saved to your history!');
+        summary.saved = true;
+        toast.success('Workout automatically logged to your history! 🎉');
       } catch (err) {
-        console.warn('[WorkoutStudio] Could not save workout:', err.message);
+        console.warn('[WorkoutStudio] Could not auto-save workout:', err.message);
       }
     }
 
+    setSummaryData(summary);
     stopEverything();
     setSession(SESSION.ENDED);
     setShowSummary(true);
@@ -387,6 +417,8 @@ export const WorkoutStudio = () => {
     setActiveSeconds(0);
     setConfidence(0);
     setSelectedExercise(null);
+    setDumbbellWeightKg(0);
+    dumbbellWeightKgRef.current = 0;
     setShowSummary(false);
     setSummaryData(null);
   }, [stopEverything]);
@@ -448,7 +480,11 @@ export const WorkoutStudio = () => {
 
       {/* Exercise Selection */}
       {session === SESSION.IDLE && (
-        <ExerciseSelector exercises={EXERCISES} onSelect={(ex) => startWorkout(ex)} />
+        <ExerciseSelector
+          exercises={EXERCISES}
+          userWeight={user?.weight || 70}
+          onSelect={(ex, weightKg) => startWorkout(ex, weightKg)}
+        />
       )}
 
       {/* Camera + Detection View (mounted whenever session is not IDLE) */}
@@ -515,7 +551,7 @@ export const WorkoutStudio = () => {
           </div>
 
           {/* Live stats grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <RepCounter repCount={poseState.repCount} phase={poseState.phase} exerciseName={selectedExercise?.name} />
             <div className="card text-center" style={{ padding: '1rem' }}>
               <p className="text-2xl font-black">
@@ -523,11 +559,20 @@ export const WorkoutStudio = () => {
               </p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>Active Time</p>
             </div>
+            {/* Dumbbell Weight Card */}
+            <div className="card text-center" style={{ padding: '1rem' }}>
+              <p className="text-2xl font-black text-emerald-400">
+                {dumbbellWeightKg > 0 ? `${dumbbellWeightKg} kg` : '0 kg'}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                {dumbbellWeightKg > 0 ? 'Dumbbells' : 'Bodyweight'}
+              </p>
+            </div>
             <div className="card text-center" style={{ padding: '1rem' }}>
               <p className="text-2xl font-black" style={{ color: '#f59e0b' }}>{calories}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>kcal (est.)</p>
             </div>
-            <div className="card text-center" style={{ padding: '1rem' }}>
+            <div className="card text-center col-span-2 md:col-span-1" style={{ padding: '1rem' }}>
               <p className="text-sm font-bold capitalize" style={{
                 color: poseState.formQuality === FORM_QUALITY.GOOD ? '#10b981' :
                   poseState.formQuality === FORM_QUALITY.NEEDS_IMPROVEMENT ? '#f59e0b' : '#8b5cf6'

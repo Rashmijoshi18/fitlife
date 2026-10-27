@@ -116,49 +116,11 @@ const LoginPage = () => {
                 ) : 'Sign In'}
               </button>
 
-              <div className="relative my-4 text-center">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t" style={{ borderColor: 'var(--color-border)' }} />
-                </div>
-                <span className="relative px-2 text-xs uppercase" style={{ background: 'var(--color-surface)', color: 'var(--color-text-subtle)' }}>
-                  Or instant access
-                </span>
               </div>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={async () => {
-                  setLoading(true);
-                  setErrors({});
-                  try {
-                    await login('rashmijoshi3699@gmail.com', 'Rashmi@3699');
-                    toast.success('Welcome to FitLife Demo! 🎉');
-                    navigate('/dashboard');
-                  } catch (err) {
-                    setErrors({ general: err.response?.data?.error || 'Demo login failed' });
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                className="btn btn-secondary w-full flex items-center justify-center gap-2"
-                style={{ width: '100%', borderColor: 'var(--color-accent)' }}
-              >
-                <Zap size={15} style={{ color: 'var(--color-accent)' }} />
-                <span>One-Click Demo Access</span>
-              </button>
-            </div>
           </form>
         </div>
 
-        <div className="mt-4 p-3 rounded-xl text-center text-xs" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-          <span style={{ color: 'var(--color-text-muted)' }}>Demo Account: </span>
-          <span className="font-mono text-emerald-400">rashmijoshi3699@gmail.com</span>
-          <span style={{ color: 'var(--color-text-subtle)' }}> · </span>
-          <span className="font-mono text-emerald-400">Rashmi@3699</span>
-        </div>
-
-        <p className="text-center mt-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
           Don't have an account?{' '}
           <Link to="/register" style={{ color: 'var(--color-accent)', fontWeight: '600' }}>Create one</Link>
         </p>
