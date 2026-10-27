@@ -1,9 +1,5 @@
 import {
   DEFAULT_EXERCISES,
-  DEFAULT_USERS,
-  getInitialWorkouts,
-  getInitialGoals,
-  getInitialMeals,
 } from './mockData';
 
 const STORAGE_KEYS = {
@@ -13,7 +9,7 @@ const STORAGE_KEYS = {
   MEALS: 'fitlife_db_meals',
   EXERCISES: 'fitlife_db_exercises',
   PLANS: 'fitlife_db_workout_plans',
-  INITIALIZED: 'fitlife_db_initialized',
+  INITIALIZED: 'fitlife_db_initialized_v2',
 };
 
 const getStored = (key, fallback = []) => {
@@ -38,25 +34,32 @@ export const initMockDatabase = () => {
 
   const initialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
   if (!initialized) {
-    // Seed initial users
-    setStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
+    // Purge any legacy dummy/mock seeded entries from localStorage
+    const existingWorkouts = getStored(STORAGE_KEYS.WORKOUTS, []);
+    const cleanWorkouts = existingWorkouts.filter(
+      (w) => !String(w._id).startsWith('wkt_') && w.user !== 'usr_demo'
+    );
+    setStored(STORAGE_KEYS.WORKOUTS, cleanWorkouts);
 
-    // Seed workouts, goals, meals for each default user
-    let allWorkouts = [];
-    let allGoals = [];
-    let allMeals = [];
+    const existingGoals = getStored(STORAGE_KEYS.GOALS, []);
+    const cleanGoals = existingGoals.filter(
+      (g) => !String(g._id).startsWith('gol_') && g.user !== 'usr_demo'
+    );
+    setStored(STORAGE_KEYS.GOALS, cleanGoals);
 
-    DEFAULT_USERS.forEach((user) => {
-      allWorkouts.push(...getInitialWorkouts(user._id));
-      allGoals.push(...getInitialGoals(user._id));
-      allMeals.push(...getInitialMeals(user._id));
-    });
+    const existingMeals = getStored(STORAGE_KEYS.MEALS, []);
+    const cleanMeals = existingMeals.filter(
+      (m) => !String(m._id).startsWith('mel_') && m.user !== 'usr_demo'
+    );
+    setStored(STORAGE_KEYS.MEALS, cleanMeals);
 
-    setStored(STORAGE_KEYS.WORKOUTS, allWorkouts);
-    setStored(STORAGE_KEYS.GOALS, allGoals);
-    setStored(STORAGE_KEYS.MEALS, allMeals);
+    const existingUsers = getStored(STORAGE_KEYS.USERS, []);
+    const cleanUsers = existingUsers.filter(
+      (u) => u._id !== 'usr_demo' && u.email !== 'demo@fitlife.com'
+    );
+    setStored(STORAGE_KEYS.USERS, cleanUsers);
+
     setStored(STORAGE_KEYS.EXERCISES, DEFAULT_EXERCISES);
-
     localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
   }
 };
@@ -87,11 +90,11 @@ const createMockSuccess = (data, status = 200, config = {}) => {
 const getCurrentUserId = () => {
   try {
     const raw = localStorage.getItem('fitlife_user');
-    if (!raw) return 'usr_demo';
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed._id || parsed.id || 'usr_demo';
+    return parsed._id || parsed.id || null;
   } catch {
-    return 'usr_demo';
+    return null;
   }
 };
 
@@ -142,7 +145,7 @@ export const handleMockRequest = async (config) => {
       return createMockError(400, 'Email and password are required', config);
     }
 
-    const users = getStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
+    const users = getStored(STORAGE_KEYS.USERS, []);
     const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
     if (existing) {
       return createMockError(409, 'An account with this email already exists', config);
@@ -165,19 +168,6 @@ export const handleMockRequest = async (config) => {
     users.push(newUser);
     setStored(STORAGE_KEYS.USERS, users);
 
-    // Seed personalized starter data for this new user so dashboard isn't empty
-    const userWorkouts = getStored(STORAGE_KEYS.WORKOUTS);
-    const userGoals = getStored(STORAGE_KEYS.GOALS);
-    const userMeals = getStored(STORAGE_KEYS.MEALS);
-
-    userWorkouts.push(...getInitialWorkouts(newUser._id));
-    userGoals.push(...getInitialGoals(newUser._id));
-    userMeals.push(...getInitialMeals(newUser._id));
-
-    setStored(STORAGE_KEYS.WORKOUTS, userWorkouts);
-    setStored(STORAGE_KEYS.GOALS, userGoals);
-    setStored(STORAGE_KEYS.MEALS, userMeals);
-
     const safeUser = { ...newUser };
     delete safeUser.password;
 
@@ -195,7 +185,7 @@ export const handleMockRequest = async (config) => {
   // 2. AUTH: LOGIN
   if (normalizedUrl === '/auth/login' && method === 'post') {
     const { email, password } = body;
-    const users = getStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
+    const users = getStored(STORAGE_KEYS.USERS, []);
     const found = users.find((u) => u.email.toLowerCase() === (email || '').toLowerCase().trim());
 
     if (!found) {
@@ -203,10 +193,7 @@ export const handleMockRequest = async (config) => {
     }
 
     if (found.password && password && found.password !== password) {
-      // Allow demo users to log in easily with demo password
-      if (!['rashmijoshi3699@gmail.com', 'demo@fitlife.com'].includes(found.email.toLowerCase())) {
-        return createMockError(401, 'Invalid email or password', config);
-      }
+      return createMockError(401, 'Invalid email or password', config);
     }
 
     const safeUser = { ...found };
@@ -226,8 +213,14 @@ export const handleMockRequest = async (config) => {
   // 3. AUTH: ME
   if (normalizedUrl === '/auth/me' && method === 'get') {
     const currentId = getCurrentUserId();
-    const users = getStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
-    const user = users.find((u) => u._id === currentId) || users[0];
+    if (!currentId) {
+      return createMockError(401, 'Unauthorized', config);
+    }
+    const users = getStored(STORAGE_KEYS.USERS, []);
+    const user = users.find((u) => u._id === currentId);
+    if (!user) {
+      return createMockError(401, 'User not found', config);
+    }
     const safeUser = { ...user };
     delete safeUser.password;
     return createMockSuccess({ user: safeUser }, 200, config);
@@ -236,7 +229,7 @@ export const handleMockRequest = async (config) => {
   // 4. AUTH: PROFILE UPDATE
   if (normalizedUrl === '/auth/profile' && method === 'patch') {
     const currentId = getCurrentUserId();
-    const users = getStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
+    const users = getStored(STORAGE_KEYS.USERS, []);
     const idx = users.findIndex((u) => u._id === currentId);
     if (idx !== -1) {
       users[idx] = { ...users[idx], ...body, _id: currentId };
@@ -251,7 +244,7 @@ export const handleMockRequest = async (config) => {
   // 5. AUTH: PASSWORD UPDATE
   if (normalizedUrl === '/auth/password' && method === 'patch') {
     const currentId = getCurrentUserId();
-    const users = getStored(STORAGE_KEYS.USERS, DEFAULT_USERS);
+    const users = getStored(STORAGE_KEYS.USERS, []);
     const idx = users.findIndex((u) => u._id === currentId);
     if (idx !== -1) {
       users[idx].password = body.newPassword;
@@ -406,7 +399,7 @@ export const handleMockRequest = async (config) => {
     const currentId = getCurrentUserId();
     const workouts = getStored(STORAGE_KEYS.WORKOUTS);
     const newWorkout = {
-      _id: 'wkt_' + Date.now(),
+      _id: 'act_' + Date.now(),
       user: currentId,
       title: body.title,
       date: body.date ? new Date(body.date).toISOString() : new Date().toISOString(),
