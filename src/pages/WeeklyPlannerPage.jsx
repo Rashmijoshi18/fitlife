@@ -7,8 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import VideoRecommendations from '../components/VideoRecommendations';
+import { useAuth } from '../contexts/AuthContext';
 
 export const WeeklyPlannerPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [currentPlan, setCurrentPlan] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,14 @@ export const WeeklyPlannerPage = () => {
     setGenerating(true);
     setError(null);
     try {
-      const res = await api.post('/ai/weekly-plan', formData);
+      const payload = {
+        ...formData,
+        userWeight: Number(user?.weight) || 70,
+        userHeight: Number(user?.height) || 175,
+        userAge: Number(user?.age) || 25,
+        gender: user?.gender || 'male',
+      };
+      const res = await api.post('/ai/weekly-plan', payload);
       setCurrentPlan(res.data.plan);
       setShowConfig(false);
       setSelectedDayIndex(0);
@@ -251,9 +260,10 @@ export const WeeklyPlannerPage = () => {
               </select>
             </div>
 
-            <div className="md:col-span-2 lg:col-span-4 flex items-center justify-between pt-2 border-t border-gray-800">
-              <span className="text-xs text-gray-400">
-                AI creates balanced stimulus, progressive volume, and mandatory recovery periods.
+            <div className="md:col-span-2 lg:col-span-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-800">
+              <span className="text-xs text-gray-400 flex items-center gap-1.5">
+                <Sparkles size={13} className="text-emerald-400 shrink-0" />
+                Calibrating volume for: <strong className="text-white">{user?.weight || 70} kg</strong> · <strong className="text-white">{user?.height || 175} cm</strong> · <strong className="text-emerald-400">{formData.fitnessLevel}</strong>
               </span>
               <button
                 type="submit"

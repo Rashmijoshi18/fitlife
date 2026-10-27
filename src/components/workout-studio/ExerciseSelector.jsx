@@ -261,11 +261,11 @@ export const ExerciseSelector = ({ exercises, onSelect, userWeight = 70 }) => {
               <span>
                 {isWeighted ? (
                   <>
-                    Total load: <strong>{totalExternalLoad} kg</strong> (pair) · Calorie rate: ~<strong>{estKcalPerRep.toFixed(2)} kcal</strong> / rep
+                    Bodyweight: <strong>{userWeight} kg</strong> · Dumbbell load: <strong>{totalExternalLoad} kg</strong> (pair) · Calorie rate: ~<strong>{estKcalPerRep.toFixed(2)} kcal</strong> / rep
                   </>
                 ) : (
                   <>
-                    Bodyweight resistance only · Calorie rate: ~<strong>{estKcalPerRep.toFixed(2)} kcal</strong> / rep
+                    Bodyweight: <strong>{userWeight} kg</strong> · Calorie rate: ~<strong>{estKcalPerRep.toFixed(2)} kcal</strong> / rep (scaled to your weight)
                   </>
                 )}
               </span>
