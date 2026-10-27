@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from 'recharts';
-import { Dumbbell, Target, Apple, Flame, Clock, TrendingUp, Plus, ArrowRight, Camera, Sparkles, Calendar, Zap } from 'lucide-react';
+import {
+  Dumbbell, Target, Apple, Flame, Clock, TrendingUp, Plus, ArrowRight,
+  Camera, Sparkles, Calendar, Zap, Trophy, ChevronRight, Award
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { format, parseISO } from 'date-fns';
+import { calculateWorkoutStats, getAchievementsList } from '../lib/achievementsHelper';
 
 const StatCard = ({ icon: Icon, label, value, sub, color = '#10b981' }) => (
   <div className="stat-card">
@@ -26,14 +30,21 @@ const StatCard = ({ icon: Icon, label, value, sub, color = '#10b981' }) => (
 const Dashboard = () => {
   const { user } = useAuth();
   const [summary, setSummary] = useState(null);
+  const [allWorkouts, setAllWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const loadDashboard = () => {
     setLoading(true);
     setError(null);
-    api.get('/progress/summary')
-      .then(res => setSummary(res.data))
+    Promise.all([
+      api.get('/progress/summary'),
+      api.get('/workouts?limit=100').catch(() => ({ data: { workouts: [] } })),
+    ])
+      .then(([summaryRes, workoutsRes]) => {
+        setSummary(summaryRes.data);
+        setAllWorkouts(workoutsRes.data?.workouts || []);
+      })
       .catch((err) => setError(err.response?.data?.error || 'Could not load dashboard data.'))
       .finally(() => setLoading(false));
   };
@@ -64,7 +75,10 @@ const Dashboard = () => {
     </div>
   );
 
-  const { summary: stats, todayNutrition, recentWorkouts, activeGoals, charts } = summary;
+  const { summary: stats, todayNutrition, recentWorkouts, charts } = summary;
+  const statsData = calculateWorkoutStats(allWorkouts);
+  const badges = getAchievementsList(statsData);
+  const unlockedCount = badges.filter((b) => b.unlocked).length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -173,7 +187,7 @@ const Dashboard = () => {
         <StatCard icon={Dumbbell} label="Total Workouts" value={stats.totalWorkouts} sub="All time" color="#10b981" />
         <StatCard icon={Clock} label="Weekly Duration" value={`${stats.weekDuration}m`} sub="This week" color="#3b82f6" />
         <StatCard icon={Flame} label="Calories Burned" value={stats.weekCaloriesBurned} sub="This week (est.)" color="#f59e0b" />
-        <StatCard icon={Target} label="Active Goals" value={stats.activeGoals} sub={`${stats.completedGoals} completed`} color="#8b5cf6" />
+        <StatCard icon={Trophy} label="Achievements" value={`${unlockedCount}/${badges.length}`} sub={`${statsData.totalReps} total reps`} color="#8b5cf6" />
       </div>
 
       {/* Charts row */}
@@ -293,35 +307,84 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Active Goals */}
+          {/* Personal Records & Analytics (Option 1) */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold">Active Goals</h2>
-              <Link to="/goals" className="text-sm" style={{ color: 'var(--color-accent)' }}>
-                <Plus size={15} />
+              <div className="flex items-center gap-2">
+                <Trophy size={18} className="text-amber-400" />
+                <h2 className="font-bold">Personal Records & Stats</h2>
+              </div>
+              <Link to="/achievements" className="text-xs font-semibold flex items-center gap-1 text-emerald-400 hover:text-emerald-300">
+                <span>All Badges</span>
+                <ChevronRight size={14} />
               </Link>
             </div>
-            {activeGoals.length === 0 ? (
-              <div className="empty-state" style={{ padding: '1rem' }}>
-                <p className="text-sm">No active goals. Set one to get started!</p>
-                <Link to="/goals" className="btn btn-primary btn-sm mt-2"><Plus size={14} /> Add Goal</Link>
+
+            {statsData.totalWorkouts === 0 ? (
+              <div className="empty-state" style={{ padding: '1.25rem' }}>
+                <p className="text-sm">No workouts logged yet.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Start an AI session to automatically record your PRs!</p>
+                <Link to="/workout-studio" className="btn btn-primary btn-sm mt-3">
+                  <Camera size={14} /> Start AI Workout
+                </Link>
               </div>
             ) : (
               <div className="space-y-3">
-                {activeGoals.slice(0, 3).map((g) => (
-                  <div key={g._id}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium truncate">{g.title}</span>
-                      <span style={{ color: 'var(--color-accent)', fontWeight: '700' }}>{g.completionPercentage}%</span>
+                {/* Reps Record */}
+                <div className="p-3 rounded-xl bg-gray-900/60 border border-gray-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                      <Zap size={14} className="text-emerald-400" />
                     </div>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${g.completionPercentage}%` }} />
+                    <div>
+                      <p className="text-xs text-gray-400">Max Single-Set Reps</p>
+                      <p className="text-sm font-black text-white">
+                        {statsData.maxRepsRecord.reps > 0 ? `${statsData.maxRepsRecord.reps} reps` : '—'}
+                      </p>
                     </div>
-                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                      {g.currentValue} / {g.targetValue} {g.unit}
-                    </p>
                   </div>
-                ))}
+                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 max-w-[120px] truncate">
+                    {statsData.maxRepsRecord.exercise}
+                  </span>
+                </div>
+
+                {/* Dumbbell Record */}
+                <div className="p-3 rounded-xl bg-gray-900/60 border border-gray-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
+                      <Dumbbell size={14} className="text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Heaviest Dumbbell</p>
+                      <p className="text-sm font-black text-white">
+                        {statsData.maxWeightRecord.weight > 0 ? `${statsData.maxWeightRecord.weight} kg` : 'Bodyweight'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20 max-w-[120px] truncate">
+                    {statsData.maxWeightRecord.exercise}
+                  </span>
+                </div>
+
+                {/* Consistency & Tonnage */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="p-2.5 rounded-lg bg-gray-900/50 border border-gray-800 text-center">
+                    <p className="text-base font-black text-white">{statsData.streakDays} {statsData.streakDays === 1 ? 'day' : 'days'}</p>
+                    <p className="text-[11px] text-gray-400">Active Streak</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-gray-900/50 border border-gray-800 text-center">
+                    <p className="text-base font-black text-white">{statsData.totalVolumeKg} kg</p>
+                    <p className="text-[11px] text-gray-400">Volume Lifted</p>
+                  </div>
+                </div>
+
+                {/* Shortcut to Challenges */}
+                <Link
+                  to="/achievements"
+                  className="w-full mt-2 py-2 px-3 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 flex items-center justify-center gap-2 text-xs font-bold text-emerald-400 transition"
+                >
+                  <Trophy size={14} /> View Badges & Active Challenges
+                </Link>
               </div>
             )}
           </div>

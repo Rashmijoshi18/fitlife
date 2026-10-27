@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  LayoutDashboard, Dumbbell, Target, Apple, BookOpen, User,
+  LayoutDashboard, Dumbbell, Trophy, Apple, BookOpen, User,
   LogOut, Menu, X, Zap, ChevronRight, Camera, Sparkles, Calendar
 } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const navItems = [
   { path: '/weekly-planner', label: 'Weekly Plan', icon: Calendar },
   { path: '/workouts', label: 'Workouts', icon: Dumbbell },
   { path: '/exercises', label: 'Exercises', icon: BookOpen },
-  { path: '/goals', label: 'Goals', icon: Target },
+  { path: '/achievements', label: 'Achievements', icon: Trophy },
   { path: '/nutrition', label: 'Nutrition', icon: Apple },
   { path: '/profile', label: 'Profile', icon: User },
 ];
