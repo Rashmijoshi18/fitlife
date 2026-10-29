@@ -219,7 +219,7 @@ const AiCoachPage = () => {
   };
 
   return (
-    <div className="fade-in max-w-7xl mx-auto w-full h-[calc(100vh-5.5rem)] flex flex-col">
+    <div className="fade-in max-w-7xl mx-auto w-full flex-1 flex flex-col h-full min-h-0">
       {/* ─── Top Master Header ─────────────────────────────────── */}
       <div className="flex items-center justify-between mb-3.5 shrink-0">
         <div className="flex items-center gap-3">

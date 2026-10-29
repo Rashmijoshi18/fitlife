@@ -23,6 +23,7 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isFullHeightPage = location.pathname === '/ai-coach';
 
   const handleLogout = () => {
     logout();
@@ -147,7 +148,7 @@ const AppLayout = ({ children }) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className={`flex-1 ${isFullHeightPage ? 'overflow-hidden p-3 md:p-4 pb-2 md:pb-2 flex flex-col' : 'overflow-y-auto p-4 md:p-6 lg:p-8'}`}>
           {children}
         </main>
       </div>
