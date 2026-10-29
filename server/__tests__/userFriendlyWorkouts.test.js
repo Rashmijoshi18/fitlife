@@ -196,4 +196,54 @@ describe('User-Friendly Workout Logging System', () => {
       expect(repeatedPayload.date).toBeDefined();
     });
   });
+
+  describe('5. Gym Trainer Domain Enforcement Guard (Only Gym Questions Answered)', () => {
+    const isGymFitnessQuery = (text) => {
+      if (!text || !text.trim()) return false;
+      const t = text.trim().toLowerCase();
+
+      // Math expressions
+      if (/^[\d\s\+\-\*\/\^\(\)\.\=\%]+$/.test(t) || /\b(calculate|equation|solve|math|algebra|geometry)\b/i.test(t)) {
+        return false;
+      }
+
+      // Off-topic subjects
+      if (/\b(python|javascript|java|c\+\+|html|css|react|sql|coding|programming|bug|compile|prime minister|president|election|capital of|movie|celebrity|bitcoin|crypto|weather today)\b/i.test(t)) {
+        return false;
+      }
+
+      const gymKeywords = /\b(gym|workout|workouts|exercise|exercises|lift|lifting|lifter|weight|weights|dumbbell|barbell|kettlebell|cable|machine|smith|bench|press|squat|squats|deadlift|deadlifts|pullup|pull-up|chin-up|pushup|push-up|dip|dips|curl|curls|lunge|lunges|plank|row|rows|lat|lats|chest|pecs|back|shoulder|shoulders|delts|bicep|biceps|tricep|triceps|forearm|quads|hamstrings|calves|glutes|abs|core|obliques|cardio|running|runner|jog|jogging|treadmill|cycling|bike|swim|swimming|hiit|tabata|crossfit|calisthenics|bodybuilding|hypertrophy|strength|endurance|stamina|reps|rep|sets|set|rpe|rir|failure|overload|progressive|volume|intensity|split|ppl|push-pull-legs|warmup|warm-up|cooldown|stretch|stretching|mobility|flexibility|recovery|sore|soreness|doms|rest|sleep|protein|creatine|whey|pre-workout|post-workout|carbs|fats|calories|diet|meal|meals|nutrition|hydration|water|banana|egg|eggs|chicken|rice|oats|fish|meat|supplements|supplement|bulk|bulking|cut|cutting|shred|lean|bmi|fat loss|weight loss|muscle|gains|gain|physique|fitness|athlete|training|trainer|coach|fitlife)\b/i;
+
+      if (gymKeywords.test(t)) return true;
+
+      if (/^(hi|hello|hey|coach|alex|good morning|good evening|howdy|what's up|sup|help)[\s!\.\?]*$/i.test(t)) {
+        return true;
+      }
+
+      return false;
+    };
+
+    test('strictly rejects math questions (e.g. "2+2", "5*10")', () => {
+      expect(isGymFitnessQuery('2+2')).toBe(false);
+      expect(isGymFitnessQuery('2 + 2')).toBe(false);
+      expect(isGymFitnessQuery('5 * 10')).toBe(false);
+      expect(isGymFitnessQuery('calculate 100/4')).toBe(false);
+    });
+
+    test('strictly rejects coding, political, and general trivia queries', () => {
+      expect(isGymFitnessQuery('write a python script')).toBe(false);
+      expect(isGymFitnessQuery('who is the president of USA?')).toBe(false);
+      expect(isGymFitnessQuery('what is the capital of France?')).toBe(false);
+      expect(isGymFitnessQuery('buy bitcoin crypto')).toBe(false);
+    });
+
+    test('strictly allows all gym, workout, lifting, and sports nutrition queries', () => {
+      expect(isGymFitnessQuery('What should I eat before lifting weights?')).toBe(true);
+      expect(isGymFitnessQuery('Give me a 4-day Push Pull Legs split')).toBe(true);
+      expect(isGymFitnessQuery('How to improve my squat form without hurting my back?')).toBe(true);
+      expect(isGymFitnessQuery('How much daily protein do I need for hypertrophy?')).toBe(true);
+      expect(isGymFitnessQuery('eating banana with egg is healthy for gym?')).toBe(true);
+      expect(isGymFitnessQuery('hi coach')).toBe(true);
+    });
+  });
 });

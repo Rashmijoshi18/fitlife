@@ -644,6 +644,33 @@ export const handleMockRequest = async (config) => {
     const msg = raw.toLowerCase();
     const history = body.history || [];
 
+    // Explicitly reject math expressions like "2+2", "5*10", "calculate 100/4"
+    const isMathOrOffTopic = /^[\d\s\+\-\*\/\^\(\)\.\=\%]+$/.test(raw.trim()) ||
+      /\b(calculate|equation|solve|math|algebra|geometry|python|javascript|java|c\+\+|coding|programming|president|election|capital of|movie|celebrity|bitcoin|crypto)\b/i.test(raw);
+
+    const gymKeywords = /\b(gym|workout|workouts|exercise|exercises|lift|lifting|lifter|weight|weights|dumbbell|barbell|kettlebell|cable|machine|smith|bench|press|squat|squats|deadlift|deadlifts|pullup|pull-up|chin-up|pushup|push-up|dip|dips|curl|curls|lunge|lunges|plank|row|rows|lat|lats|chest|pecs|back|shoulder|shoulders|delts|bicep|biceps|tricep|triceps|forearm|quads|hamstrings|calves|glutes|abs|core|obliques|cardio|running|runner|jog|jogging|treadmill|cycling|bike|swim|swimming|hiit|tabata|crossfit|calisthenics|bodybuilding|hypertrophy|strength|endurance|stamina|reps|rep|sets|set|rpe|rir|failure|overload|progressive|volume|intensity|split|ppl|push-pull-legs|warmup|warm-up|cooldown|stretch|stretching|mobility|flexibility|recovery|sore|soreness|doms|rest|sleep|protein|creatine|whey|pre-workout|post-workout|carbs|fats|calories|diet|meal|meals|nutrition|hydration|water|banana|egg|eggs|chicken|rice|oats|fish|meat|supplements|supplement|bulk|bulking|cut|cutting|shred|lean|bmi|fat loss|weight loss|muscle|gains|gain|physique|fitness|athlete|training|trainer|coach|fitlife)\b/i;
+
+    const isGreeting = /^(hi|hello|hey|coach|alex|good morning|good evening|howdy|what's up|sup|help)[\s!\.\?]*$/i.test(raw.trim());
+
+    if (isMathOrOffTopic || (!gymKeywords.test(raw) && !isGreeting)) {
+      return createMockSuccess({
+        reply: `### 🏋️‍♂️ Coach Alex: Gym Floor Focus Only!
+
+**Whoa there, champ!** I am **Coach Alex**, your dedicated gym trainer and strength coach.
+
+I **only** answer questions related to:
+- 🏋️ **Gym Workouts & Lifting** (Push/Pull/Legs splits, sets, reps, progressive overload)
+- 🎯 **Exercise Form & Technique** (Squats, bench press, deadlifts, pull-ups)
+- 🥩 **Fitness & Muscle Nutrition** (Protein targets, pre/post-workout meals, creatine, calories)
+- 💤 **Recovery & Mobility** (Rest days, preventing injury, dynamic warm-ups)
+
+I don't do math (like "2+2"), coding, or non-fitness chit-chat — we keep 100% of our energy focused on your **strength and gains**! 
+
+*Tell me: what muscle group or workout are we hitting today?*`,
+        source: 'gym-trainer-guard'
+      }, 200, config);
+    }
+
     // Attempt live Google Gemini call
     const apiKey = localStorage.getItem('fitlife_gemini_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
     if (apiKey) {
@@ -661,7 +688,18 @@ export const handleMockRequest = async (config) => {
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents }),
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{
+                  text: `You are Coach Alex, an elite Certified Personal Gym Trainer and Strength Coach at FitLife.
+CRITICAL CONSTRAINT: You ONLY answer questions related to gym training, workouts, exercises, lifting form, muscle building, fitness, and sports nutrition.
+If the user asks ANY question outside of gym/fitness/nutrition (such as math like 2+2, coding, trivia, general topics):
+Strictly REFUSE to answer the off-topic question! Do not calculate math or provide non-gym answers.
+Politely decline as Coach Alex and ask what muscle group or workout they are training today.`
+                }]
+              },
+              contents
+            }),
           }
         );
 
