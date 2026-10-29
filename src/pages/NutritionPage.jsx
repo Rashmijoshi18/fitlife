@@ -878,15 +878,15 @@ const NutritionPage = () => {
   const weeklyAdherence = Math.round((completedCount / 7) * 100);
 
   return (
-    <div className="fade-in max-w-6xl mx-auto space-y-6 pb-12">
+    <div className="fade-in w-full space-y-4">
       {/* ─── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
             <Apple size={22} className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-white flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
               AI Weekly Nutrition Planner
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 AI Powered
@@ -898,13 +898,30 @@ const NutritionPage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Date Selector */}
+          <div className="flex items-center gap-1.5 bg-gray-900 border border-gray-800 rounded-lg px-2.5 py-1 text-xs">
+            <Calendar size={13} className="text-emerald-400 shrink-0" />
+            <input
+              type="date"
+              className="bg-transparent text-xs text-white border-0 p-0 focus:outline-none"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+            <button
+              onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
+              className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase ml-1 px-1.5 py-0.5 rounded bg-emerald-500/10"
+            >
+              Today
+            </button>
+          </div>
+
           <button
             onClick={() => navigate('/weekly-planner')}
-            className="btn btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary text-xs flex items-center gap-1.5 py-1.5"
           >
             <Calendar size={14} className="text-purple-400" />
-            View Workout Plan
+            Workout Plan
           </button>
           <button
             onClick={() => {
@@ -912,9 +929,9 @@ const NutritionPage = () => {
               setEditMeal(null);
               setShowModal(true);
             }}
-            className="btn btn-primary text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40"
+            className="btn btn-primary text-xs flex items-center gap-1.5 py-1.5 shadow-md shadow-emerald-950/40"
           >
-            <Plus size={14} /> Log Custom Meal
+            <Plus size={14} /> Custom Meal
           </button>
         </div>
       </div>
@@ -1150,100 +1167,14 @@ const NutritionPage = () => {
               ))}
             </div>
           </div>
-
-          {/* ─── Logged Meals for Selected Date ──────────────────────────────── */}
-          <div className="card p-5 space-y-4 bg-gray-900/60 border-gray-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-emerald-400" />
-                <h3 className="font-bold text-sm text-white">
-                  Logged Meals for Date: <span className="text-emerald-400">{selectedDate}</span>
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  className="form-input text-xs"
-                  style={{ width: 'auto', padding: '0.25rem 0.5rem' }}
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                />
-                <button
-                  onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
-                  className="btn btn-secondary btn-sm text-[11px]"
-                >
-                  Today
-                </button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="space-y-2">
-                {[...Array(2)].map((_, i) => (
-                  <div key={i} className="skeleton h-14 rounded-xl" />
-                ))}
-              </div>
-            ) : meals.length === 0 ? (
-              <div className="p-6 text-center text-xs text-gray-500 bg-gray-950/40 rounded-xl">
-                No meals logged yet for this date. Click <strong className="text-emerald-400 font-semibold">+ Log Meal</strong> above to record your nutrition in 1 tap!
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {meals.map((meal) => (
-                  <div
-                    key={meal._id}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-gray-950/60 border border-gray-800/70"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ background: mealTypeColors[meal.mealType] || '#10b981' }}
-                        />
-                        <p className="text-xs font-semibold truncate text-white">{meal.name}</p>
-                      </div>
-                      <div className="flex gap-3 text-[11px] mt-0.5 text-gray-400 font-mono">
-                        <span className="text-orange-400 font-medium">{meal.calories} kcal</span>
-                        <span className="text-emerald-400">P: {meal.protein}g</span>
-                        <span className="text-blue-400">C: {meal.carbs}g</span>
-                        <span className="text-amber-400">F: {meal.fat}g</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      <button
-                        onClick={() => {
-                          setEditMeal(meal);
-                          setShowModal(true);
-                        }}
-                        className="btn btn-ghost btn-sm"
-                        style={{ padding: '0.25rem' }}
-                        title="Edit meal"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(meal._id)}
-                        className="btn btn-ghost btn-sm text-red-400 hover:text-red-300"
-                        style={{ padding: '0.25rem' }}
-                        title="Delete meal"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ─── Right Column: Macro Distribution & Coach Tips ────────────────── */}
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Daily Calorie & Macro Target Card */}
           <div className="card p-5 space-y-4 border-gray-800 bg-gray-900/80">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-white">Daily Calorie & Macro Target</h3>
+              <h3 className="font-bold text-sm text-white">Daily Target vs Logged</h3>
               <span className={`text-[11px] font-bold ${isOverCalorie ? 'text-red-400' : 'text-emerald-400'}`}>
                 {isOverCalorie ? `${Math.abs(caloriesRemaining)} kcal over` : `${caloriesRemaining} kcal left`}
               </span>
@@ -1323,6 +1254,58 @@ const NutritionPage = () => {
                     />
                   </PieChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Logged Meals List (Shown when meals > 0) */}
+            {meals.length > 0 && (
+              <div className="pt-3 border-t border-gray-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock size={12} className="text-emerald-400" />
+                    Logged Today ({meals.length})
+                  </span>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                    {Math.round(totals.calories)} kcal
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                  {meals.map((meal) => (
+                    <div
+                      key={meal._id}
+                      className="flex items-center justify-between p-2 rounded-lg bg-gray-950/70 border border-gray-800/80 text-xs"
+                    >
+                      <div className="flex-1 min-w-0 mr-2">
+                        <p className="font-semibold text-gray-200 truncate">{meal.name}</p>
+                        <div className="flex gap-2 text-[10px] text-gray-400 font-mono mt-0.5">
+                          <span className="text-orange-400">{meal.calories} kcal</span>
+                          <span className="text-emerald-400">P:{meal.protein}g</span>
+                          <span className="text-blue-400">C:{meal.carbs}g</span>
+                          <span className="text-amber-400">F:{meal.fat}g</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditMeal(meal);
+                            setShowModal(true);
+                          }}
+                          className="p-1 text-gray-400 hover:text-white"
+                          title="Edit"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(meal._id)}
+                          className="p-1 text-gray-400 hover:text-red-400"
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
