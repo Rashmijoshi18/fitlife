@@ -489,11 +489,9 @@ const WorkoutsPage = () => {
         }
       }
 
-      // Extract type
+      // Extract type (prioritize specific high-intensity styles before general cardio)
       let type = 'other';
-      if (/run|jog|treadmill|walk|cycle|cycling|bike|swim|elliptical|cardio/i.test(lower)) {
-        type = 'cardio';
-      } else if (/hiit|tabata|interval|circuit|burn/i.test(lower)) {
+      if (/hiit|tabata|interval|circuit/i.test(lower)) {
         type = 'hiit';
       } else if (/yoga|stretch|pilates|mobility|flexibility/i.test(lower)) {
         type = 'flexibility';
@@ -501,6 +499,8 @@ const WorkoutsPage = () => {
         type = 'strength';
       } else if (/football|soccer|basketball|tennis|badminton|boxing|sports/i.test(lower)) {
         type = 'sports';
+      } else if (/ran|run|running|jog|jogging|treadmill|walk|walking|cycle|cycling|bike|swim|swimming|elliptical|cardio|sprint/i.test(lower)) {
+        type = 'cardio';
       }
 
       // Title capitalization
