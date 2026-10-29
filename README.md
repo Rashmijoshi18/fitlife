@@ -121,41 +121,6 @@
    - Direct integration with YouTube Data API v3 delivering form guides, technique breakdowns, and exercise demos.
    - In-app responsive modal player with embedded video tutorials and automatic YouTube search fallback.
 
----
-
-## 🗄 System Design & Entity Relationships
-
-```
-+-----------------------------------+        +-----------------------------------+
-|               User                | 1    * |              Workout              |
-+-----------------------------------+--------+-----------------------------------+
-| _id: ObjectId                     |        | _id: ObjectId                     |
-| name: String                      |        | userId: Ref(User) [Indexed]       |
-| email: String [Unique, Indexed]   |        | title: String                     |
-| password: String (Hashed)         |        | type: Enum (strength, cardio, ..) |
-| fitnessLevel: Enum                |        | duration: Number (minutes)        |
-| height: Number                    |        | caloriesBurned: Number            |
-| weight: Number                    |        | exercises: Array [{name, sets..}] |
-| dailyCalorieGoal: Number          |        | date: Date [Indexed]              |
-| createdAt, updatedAt: Date        |        | notes: String                     |
-+-----------------------------------+        +-----------------------------------+
-         | 1                        | 1
-         |                          |
-         | *                        | *
-+-----------------------------------+        +-----------------------------------+
-|               Goal                |        |               Meal                |
-+-----------------------------------+        +-----------------------------------+
-| _id: ObjectId                     |        | _id: ObjectId                     |
-| userId: Ref(User) [Indexed]       |        | userId: Ref(User) [Indexed]       |
-| title: String                     |        | name: String                      |
-| category: Enum (weight, reps, ..) |        | mealType: Enum (breakfast, ..)    |
-| targetValue: Number               |        | calories: Number                  |
-| currentValue: Number              |        | protein: Number (grams)           |
-| unit: String                      |        | carbs: Number (grams)             |
-| deadline: Date                    |        | fat: Number (grams)               |
-| status: Enum (active, completed)  |        | date: Date [Indexed]              |
-+-----------------------------------+        +-----------------------------------+
-```
 
 ---
 
@@ -301,22 +266,6 @@ The test suites validate:
 
 ---
 
-## 🎓 Placement & Interview Talking Points
-
-During technical interviews and campus placement rounds, here are architectural decisions and trade-offs you can highlight:
-
-1. **Why JWT over Session Cookies?**
-   - Explain stateless authentication: scalability across multiple server instances without shared Redis session state, making cloud deployments cost-efficient and straightforward.
-2. **Database Schema Design & Indexing**:
-   - Compound indexes on `{ userId: 1, date: -1 }` on `workouts` and `meals` ensure rapid timeline querying for dashboards without triggering collection scans.
-3. **Decoupled Frontend / Backend Architecture**:
-   - Clean separation of concerns with RESTful API design allows the client application to be swapped (e.g., React Native mobile app) without altering core backend business logic.
-4. **Resilient Error Handling & UX Feedback**:
-   - Centralized Axios interceptors handle expired sessions (auto-logout and redirect), while `react-hot-toast` provides immediate, non-intrusive error feedback to users.
-5. **Chart Performance & Responsiveness**:
-   - Utilized Recharts `<ResponsiveContainer>` with memoized aggregates to prevent unnecessary canvas/SVG recalculations during parent component re-renders.
-
----
 
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
