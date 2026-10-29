@@ -356,20 +356,6 @@ const AiCoachPage = () => {
           {/* Docked Input Box */}
           {!setupRequired && (
             <div className="p-3 sm:p-4 bg-gray-950/80 border-t border-gray-800/80 shrink-0 space-y-2">
-              {/* Quick suggestion pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
-                <span className="text-gray-500 shrink-0 font-medium">Quick ask:</span>
-                {QUICK_ACTIONS.map((a, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(a.prompt)}
-                    className="whitespace-nowrap px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-emerald-500/15 hover:text-emerald-300 border border-gray-800 text-gray-300 transition-colors shrink-0"
-                  >
-                    {a.icon} {a.label}
-                  </button>
-                ))}
-              </div>
-
               {/* Text Input & Send */}
               <div className="flex items-end gap-2 bg-gray-900/90 border border-gray-700/80 rounded-xl p-1.5 focus-within:border-emerald-500 transition-colors">
                 <textarea
