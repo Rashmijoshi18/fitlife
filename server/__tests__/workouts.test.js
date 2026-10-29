@@ -1,8 +1,10 @@
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test_jwt_secret_for_testing';
 const request = require('supertest');
 const mongoose = require('mongoose');
-const app = require('../../src/index');
-const User = require('../../src/models/User');
-const Workout = require('../../src/models/Workout');
+const app = require('../src/index');
+const User = require('../src/models/User');
+const Workout = require('../src/models/Workout');
 
 const TEST_DB = 'mongodb://127.0.0.1:27017/fitlife_test';
 
