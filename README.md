@@ -301,22 +301,6 @@ The test suites validate:
 
 ---
 
-## 🎓 Placement & Interview Talking Points
-
-During technical interviews and campus placement rounds, here are architectural decisions and trade-offs you can highlight:
-
-1. **Why JWT over Session Cookies?**
-   - Explain stateless authentication: scalability across multiple server instances without shared Redis session state, making cloud deployments cost-efficient and straightforward.
-2. **Database Schema Design & Indexing**:
-   - Compound indexes on `{ userId: 1, date: -1 }` on `workouts` and `meals` ensure rapid timeline querying for dashboards without triggering collection scans.
-3. **Decoupled Frontend / Backend Architecture**:
-   - Clean separation of concerns with RESTful API design allows the client application to be swapped (e.g., React Native mobile app) without altering core backend business logic.
-4. **Resilient Error Handling & UX Feedback**:
-   - Centralized Axios interceptors handle expired sessions (auto-logout and redirect), while `react-hot-toast` provides immediate, non-intrusive error feedback to users.
-5. **Chart Performance & Responsiveness**:
-   - Utilized Recharts `<ResponsiveContainer>` with memoized aggregates to prevent unnecessary canvas/SVG recalculations during parent component re-renders.
-
----
 
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
