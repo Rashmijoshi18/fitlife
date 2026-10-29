@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar, Sparkles, CheckCircle2, Circle, Clock, Flame,
-  Dumbbell, ChevronRight, RefreshCw, AlertCircle, Loader, Play, Video
+  Dumbbell, ChevronRight, RefreshCw, AlertCircle, Loader, Play, Video, Apple
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
@@ -164,6 +164,13 @@ export const WeeklyPlannerPage = () => {
             </button>
           )}
           <button
+            onClick={() => navigate('/nutrition')}
+            className="btn btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <Apple size={14} className="text-emerald-400" />
+            Weekly Nutrition
+          </button>
+          <button
             onClick={() => navigate('/workout-studio')}
             className="btn btn-primary text-xs flex items-center gap-1.5"
           >
@@ -177,9 +184,9 @@ export const WeeklyPlannerPage = () => {
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
           <AlertCircle size={18} className="text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-amber-400">Gemini API Key Required on Server</p>
+            <p className="text-sm font-semibold text-amber-400">AI Engine API Key Required on Server</p>
             <p className="text-xs text-gray-400 mt-1">
-              Add <code className="bg-gray-800 px-1 py-0.5 rounded text-amber-300">GEMINI_API_KEY</code> to your backend environment to enable dynamic AI plan generation. Using built-in intelligent smart routines for now.
+              Add an active API key to your backend environment to enable dynamic AI plan generation. Using built-in intelligent smart routines for now.
             </p>
           </div>
         </div>
