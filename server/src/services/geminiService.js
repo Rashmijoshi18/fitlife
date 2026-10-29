@@ -104,7 +104,7 @@ const chat = async (userMessage, history = [], userContext = {}) => {
     systemInstruction,
     contents,
     config: {
-      maxOutputTokens: 800,
+      maxOutputTokens: 2500,
       temperature: 0.7,
     },
   });

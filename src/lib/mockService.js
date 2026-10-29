@@ -698,7 +698,11 @@ Strictly REFUSE to answer the off-topic question! Do not calculate math or provi
 Politely decline as Coach Alex and ask what muscle group or workout they are training today.`
                 }]
               },
-              contents
+              contents,
+              generationConfig: {
+                maxOutputTokens: 2500,
+                temperature: 0.7,
+              }
             }),
           }
         );

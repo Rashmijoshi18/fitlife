@@ -1,84 +1,95 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader, AlertCircle, Sparkles, RefreshCw, Key, CheckCircle2, X } from 'lucide-react';
+import {
+  Send, User, Loader, AlertCircle, RefreshCw, Key,
+  CheckCircle2, X, Dumbbell, Zap, Target, ShieldCheck,
+  ChevronRight
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const SUGGESTED_PROMPTS = [
-  'What should I eat before a workout?',
-  'eating banana with egg is healthy for me while going to gym',
-  'Create a beginner workout plan for weight loss',
-  'What are the best exercises for building core strength?',
-  'Explain proper squat form for a beginner',
-  'How do I track my progress effectively?',
+const QUICK_ACTIONS = [
+  { icon: '🏋️‍♂️', label: '4-Day Push/Pull/Legs Split', prompt: 'Give me a 4-day Push-Pull-Legs gym workout split with sets and reps.' },
+  { icon: '🎯', label: 'Squat Form & Lower Back Safety', prompt: 'What are the key biomechanics and cues to protect my lower back on barbell squats?' },
+  { icon: '🥩', label: 'Optimal Pre/Post Workout Meals', prompt: 'What should I eat before and after lifting heavy weights for maximum energy and recovery?' },
+  { icon: '📈', label: 'Overcome Bench Press Plateau', prompt: 'How do I use progressive overload and accessory work to break a bench press plateau?' },
+  { icon: '⚡', label: 'Creatine & Daily Protein Target', prompt: 'How much daily protein and creatine do I need to maximize muscle hypertrophy?' },
+  { icon: '💤', label: 'DOMS & Muscle Recovery Protocol', prompt: 'What is the fastest way to recover from severe muscle soreness (DOMS) after leg day?' },
+];
+
+const TRAINER_RULES = [
+  { title: 'Form Over Ego', desc: 'Control the 2-second negative before stacking weight.' },
+  { title: 'Progressive Overload', desc: 'Add 1 clean rep or 1-2.5 kg to working sets weekly.' },
+  { title: 'Protein Target', desc: 'Aim for 1.6 to 2.2g of protein per kg bodyweight.' },
+  { title: 'Systematic Rest', desc: 'Give each muscle group 48 hours to rebuild.' },
 ];
 
 const MarkdownComponents = {
-  h1: ({ node, ...props }) => <h1 className="text-base font-bold text-white mt-3 mb-1.5" {...props} />,
-  h2: ({ node, ...props }) => <h2 className="text-sm font-bold text-white mt-3 mb-1.5" {...props} />,
-  h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-emerald-400 mt-2 mb-1" {...props} />,
-  h4: ({ node, ...props }) => <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mt-2 mb-1" {...props} />,
-  p: ({ node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed text-[var(--color-text)]" {...props} />,
-  ul: ({ node, ...props }) => <ul className="list-disc list-outside pl-5 mb-2 space-y-1 text-[var(--color-text)]" {...props} />,
-  ol: ({ node, ...props }) => <ol className="list-decimal list-outside pl-5 mb-2 space-y-1 text-[var(--color-text)]" {...props} />,
-  li: ({ node, ...props }) => <li className="leading-relaxed pl-0.5" {...props} />,
-  strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
-  em: ({ node, ...props }) => <em className="italic text-zinc-300" {...props} />,
-  blockquote: ({ node, ...props }) => (
-    <blockquote className="border-l-2 border-emerald-500/70 pl-3 my-2 italic text-zinc-400 text-xs" {...props} />
+  h1: ({ _node, ...props }) => <h1 className="text-base font-bold text-white mt-3 mb-1.5" {...props} />,
+  h2: ({ _node, ...props }) => <h2 className="text-sm font-bold text-white mt-3 mb-1.5" {...props} />,
+  h3: ({ _node, ...props }) => <h3 className="text-sm font-semibold text-emerald-400 mt-2.5 mb-1 flex items-center gap-1.5" {...props} />,
+  h4: ({ _node, ...props }) => <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mt-2 mb-1" {...props} />,
+  p: ({ _node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed text-[var(--color-text)]" {...props} />,
+  ul: ({ _node, ...props }) => <ul className="list-disc list-outside pl-5 mb-2.5 space-y-1 text-[var(--color-text)]" {...props} />,
+  ol: ({ _node, ...props }) => <ol className="list-decimal list-outside pl-5 mb-2.5 space-y-1 text-[var(--color-text)]" {...props} />,
+  li: ({ _node, ...props }) => <li className="leading-relaxed pl-0.5" {...props} />,
+  strong: ({ _node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+  em: ({ _node, ...props }) => <em className="italic text-zinc-300" {...props} />,
+  blockquote: ({ _node, ...props }) => (
+    <blockquote className="border-l-2 border-emerald-500/80 pl-3 my-2 italic text-zinc-400 text-xs bg-emerald-500/5 py-1.5 rounded-r" {...props} />
   ),
-  code({ node, inline, className, children, ...props }) {
+  code({ _node, inline, children, ...props }) {
     if (inline) {
       return (
-        <code className="px-1.5 py-0.5 rounded text-xs font-mono bg-black/40 text-emerald-400 border border-emerald-500/20" {...props}>
+        <code className="px-1.5 py-0.5 rounded text-xs font-mono bg-black/50 text-emerald-400 border border-emerald-500/20" {...props}>
           {children}
         </code>
       );
     }
     return (
-      <pre className="p-3 my-2 rounded-lg bg-black/50 text-xs font-mono overflow-x-auto text-emerald-300 border border-zinc-800">
+      <pre className="p-3 my-2 rounded-lg bg-black/60 text-xs font-mono overflow-x-auto text-emerald-300 border border-zinc-800">
         <code {...props}>{children}</code>
       </pre>
     );
   },
-  table: ({ node, ...props }) => (
-    <div className="overflow-x-auto my-3 rounded-lg border border-[var(--color-border)]">
+  table: ({ _node, ...props }) => (
+    <div className="overflow-x-auto my-3 rounded-xl border border-gray-800 bg-gray-950/60">
       <table className="w-full text-xs text-left border-collapse" {...props} />
     </div>
   ),
-  thead: ({ node, ...props }) => <thead className="bg-black/30 border-b border-[var(--color-border)]" {...props} />,
-  th: ({ node, ...props }) => <th className="p-2 font-semibold text-zinc-200" {...props} />,
-  td: ({ node, ...props }) => <td className="p-2 border-b border-[var(--color-border-subtle)] text-zinc-300" {...props} />,
-  a: ({ node, ...props }) => (
+  thead: ({ _node, ...props }) => <thead className="bg-emerald-500/10 border-b border-gray-800 text-emerald-300 uppercase tracking-wider" {...props} />,
+  th: ({ _node, ...props }) => <th className="p-2.5 font-bold text-zinc-200" {...props} />,
+  td: ({ _node, ...props }) => <td className="p-2.5 border-b border-gray-800/60 text-zinc-300" {...props} />,
+  a: ({ _node, ...props }) => (
     <a className="text-emerald-400 underline underline-offset-2 hover:text-emerald-300 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
   ),
-  hr: ({ node, ...props }) => <hr className="my-3 border-[var(--color-border)]" {...props} />,
+  hr: ({ _node, ...props }) => <hr className="my-3 border-gray-800" {...props} />,
 };
 
 const Message = ({ role, content }) => {
   const isUser = role === 'user';
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-        style={{ background: isUser ? 'var(--color-accent)' : 'var(--color-surface-2)' }}>
-        {isUser
-          ? <User size={14} style={{ color: '#000' }} />
-          : <Bot size={14} style={{ color: 'var(--color-accent)' }} />
-        }
+    <div className={`flex gap-3.5 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}>
+      <div
+        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
+          isUser
+            ? 'bg-emerald-500 text-black font-bold'
+            : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+        }`}
+      >
+        {isUser ? <User size={16} /> : <Dumbbell size={16} />}
       </div>
       <div
-        className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
-        style={{
-          background: isUser ? 'var(--color-accent)' : 'var(--color-surface-2)',
-          color: isUser ? '#000' : 'var(--color-text)',
-          borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-          whiteSpace: isUser ? 'pre-wrap' : 'normal',
-        }}
+        className={`max-w-[90%] sm:max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all shadow-sm ${
+          isUser
+            ? 'bg-emerald-500 text-black font-medium rounded-tr-none'
+            : 'bg-gray-900/90 text-[var(--color-text)] border border-gray-800/90 rounded-tl-none shadow-black/40'
+        }`}
       >
         {isUser ? (
-          content
+          <span className="font-semibold text-black">{content}</span>
         ) : (
           <div className="chat-markdown prose-neutral">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
@@ -208,264 +219,300 @@ const AiCoachPage = () => {
   };
 
   return (
-    <div className="fade-in max-w-3xl mx-auto h-full flex flex-col" style={{ height: 'calc(100vh - 8rem)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 shrink-0">
+    <div className="fade-in max-w-7xl mx-auto w-full h-[calc(100vh-5.5rem)] flex flex-col">
+      {/* ─── Top Master Header ─────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-3.5 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: 'rgba(139,92,246,0.15)' }}>
-            <Sparkles size={20} style={{ color: '#8b5cf6' }} />
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shrink-0">
+            <Dumbbell size={22} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black">AI Fitness Coach</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-white">Coach Alex</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                Certified Gym Trainer
+              </span>
               {isGeminiActive ? (
-                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Gemini 3 Flash Live
+                  Gemini Live Active
                 </span>
               ) : (
                 <button
                   onClick={() => setShowKeyModal(true)}
-                  className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all cursor-pointer"
-                  title="Configure Google Gemini API Key"
+                  className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all cursor-pointer"
                 >
-                  <Key size={11} />
-                  Connect Gemini API
+                  <Key size={11} /> Connect Gemini API
                 </button>
               )}
             </div>
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              {isGeminiActive ? 'Powered by Google Gemini 3 Flash' : 'AI Powered Fitness & Nutrition Guidance'}
+            <p className="text-xs text-gray-400 mt-0.5">
+              Strictly focused on Gym Training, Lifting Biomechanics, Progressive Overload & Sports Nutrition
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowKeyModal(true)}
-            className="btn btn-secondary btn-sm flex items-center gap-1.5"
+            className="btn btn-secondary btn-sm text-xs py-1.5 px-3 flex items-center gap-1.5"
             title="Configure Gemini API Key"
           >
             <Key size={13} />
             <span className="hidden sm:inline">API Key</span>
           </button>
           {messages.length > 0 && (
-            <button onClick={clearChat} className="btn btn-ghost btn-sm" title="Clear conversation">
-              <RefreshCw size={14} /> Clear
+            <button
+              onClick={clearChat}
+              className="btn btn-ghost btn-sm text-xs py-1.5 px-2.5 text-gray-400 hover:text-white"
+              title="Clear conversation"
+            >
+              <RefreshCw size={13} /> <span className="hidden sm:inline">Clear</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Gemini API Key Modal */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="card w-full max-w-md p-6 relative border border-[var(--color-border)] shadow-2xl">
-            <button
-              onClick={() => setShowKeyModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/15 text-emerald-400">
-                <Key size={20} />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-white">Google Gemini API Key</h3>
-                <p className="text-xs text-[var(--color-text-muted)]">Connect official Google Gemini for live AI coaching</p>
-              </div>
+      {/* ─── Main 2-Column Responsive Console ─────────────────── */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 overflow-hidden">
+        {/* Left/Main Column: Chat Stream & Docked Input (8/12 cols) */}
+        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-[#111118]/80 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
+          {/* Subtle Gym Scope Bar */}
+          <div className="px-4 py-2 border-b border-gray-800/80 bg-gray-950/40 flex items-center justify-between text-[11px] text-gray-400 shrink-0">
+            <div className="flex items-center gap-1.5 truncate">
+              <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
+              <span className="truncate">Gym & Fitness Only Mode: Ask for splits, form cues, PRs & gym diet</span>
             </div>
+            <span className="hidden sm:inline text-gray-500">Coach Alex 🏋️‍♂️</span>
+          </div>
 
-            {keySuccess ? (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2 text-sm my-4">
-                <CheckCircle2 size={18} />
-                <span>Google Gemini API connected and activated!</span>
-              </div>
-            ) : (
-              <form onSubmit={saveApiKey} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300">Enter your Gemini API Key</label>
-                  <input
-                    type="password"
-                    value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="form-input w-full font-mono text-sm"
-                    autoFocus
-                    required
-                  />
-                  <p className="text-xs text-[var(--color-text-subtle)] mt-1">
-                    Get a free API key at{' '}
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-400 underline hover:text-emerald-300"
+          {/* Messages Scroll Area */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-4">
+            {/* Welcome hero when empty */}
+            {messages.length === 0 && !setupRequired && (
+              <div className="text-center py-6 sm:py-10 max-w-xl mx-auto">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3.5 bg-emerald-500/10 border border-emerald-500/25 shadow-lg shadow-emerald-500/5">
+                  <Dumbbell size={30} className="text-emerald-400" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white mb-1.5">
+                  Ready to train, {user?.name?.split(' ')[0] || 'champ'}? 🏋️‍♂️
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-400 mb-6 leading-relaxed">
+                  I'm <strong className="text-white">Coach Alex</strong>, your personal gym trainer. Tell me what muscle group you're hitting, ask for strict form corrections, or request customized lifting splits. Let's get to work!
+                </p>
+
+                {/* Instant Quick Prompts */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                  {QUICK_ACTIONS.slice(0, 4).map((action, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendMessage(action.prompt)}
+                      className="p-3 rounded-xl text-xs transition-all bg-gray-900/60 border border-gray-800/80 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-gray-300 group flex items-start gap-2.5"
                     >
-                      aistudio.google.com
-                    </a>
-                  </p>
+                      <span className="text-lg shrink-0">{action.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white group-hover:text-emerald-300 truncate">
+                          {action.label}
+                        </p>
+                        <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                          {action.prompt}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyModal(false)}
-                    className="btn btn-ghost btn-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!apiKeyInput.trim() || keySaving}
-                    className="btn btn-primary btn-sm flex items-center gap-1.5"
-                  >
-                    {keySaving ? <Loader size={14} className="animate-spin" /> : <Key size={14} />}
-                    <span>Save & Connect</span>
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
+
+            {/* Rendered Messages */}
+            {messages.map((msg, i) => (
+              <Message key={i} role={msg.role} content={msg.content} />
+            ))}
+
+            {/* Loading Indicator */}
+            {loading && (
+              <div className="flex gap-3 items-center">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Dumbbell size={16} />
+                </div>
+                <div className="px-4 py-3 rounded-2xl bg-gray-900 border border-gray-800 text-xs text-gray-400 flex items-center gap-2">
+                  <Loader size={14} className="animate-spin text-emerald-400" />
+                  <span>Coach Alex is calculating your gym protocol…</span>
+                </div>
+              </div>
+            )}
+
+            {/* Error banner */}
+            {error && (
+              <div className="flex items-center gap-2 text-xs p-3 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
           </div>
-        </div>
-      )}
 
-      {/* Setup Required Banner */}
-      {setupRequired && (
-        <div className="flex items-start gap-3 p-4 rounded-xl mb-4 shrink-0"
-          style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
-          <AlertCircle size={18} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
-          <div className="flex-1">
-            <p className="font-semibold text-sm" style={{ color: '#f59e0b' }}>Gemini API Key Setup</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              Click{' '}
-              <button
-                onClick={() => setShowKeyModal(true)}
-                className="underline font-semibold text-amber-400 hover:text-amber-300 cursor-pointer"
-              >
-                Connect Gemini API
-              </button>{' '}
-              to paste your key, or get a free key at{' '}
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
-                style={{ color: '#f59e0b' }}>aistudio.google.com</a>.
-            </p>
-          </div>
-        </div>
-      )}
+          {/* Docked Input Box */}
+          {!setupRequired && (
+            <div className="p-3 sm:p-4 bg-gray-950/80 border-t border-gray-800/80 shrink-0 space-y-2">
+              {/* Quick suggestion pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                <span className="text-gray-500 shrink-0 font-medium">Quick ask:</span>
+                {QUICK_ACTIONS.map((a, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(a.prompt)}
+                    className="whitespace-nowrap px-2.5 py-1 rounded-lg bg-gray-900 hover:bg-emerald-500/15 hover:text-emerald-300 border border-gray-800 text-gray-300 transition-colors shrink-0"
+                  >
+                    {a.icon} {a.label}
+                  </button>
+                ))}
+              </div>
 
-      {/* Disclaimer */}
-      <div className="p-3 rounded-lg mb-4 shrink-0"
-        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-        <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
-          ⚕️ AI coaching provides general fitness guidance only. It is not a substitute for medical advice.
-          Always consult a healthcare professional before starting a new exercise program.
-          Do not share sensitive personal or medical information.
-        </p>
-      </div>
-
-      {/* Chat area */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
-        {/* Welcome */}
-        {messages.length === 0 && !setupRequired && (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background: 'rgba(139,92,246,0.15)' }}>
-              <Bot size={32} style={{ color: '#8b5cf6' }} />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Hi {user?.name?.split(' ')[0]}! 👋</h2>
-            <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
-              I'm your AI fitness coach. Ask me anything about workouts, nutrition, or your fitness goals.
-            </p>
-
-            {/* Suggested prompts */}
-            <div className="grid gap-2 max-w-md mx-auto">
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {/* Text Input & Send */}
+              <div className="flex items-end gap-2 bg-gray-900/90 border border-gray-700/80 rounded-xl p-1.5 focus-within:border-emerald-500 transition-colors">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask your gym trainer (e.g. 'Fix my squat form', '4-day split', 'pre-workout meal')..."
+                  rows={1}
+                  className="w-full bg-transparent border-0 text-xs sm:text-sm text-white placeholder-gray-500 px-2.5 py-1.5 focus:outline-none resize-none max-h-28"
+                  style={{ minHeight: '38px' }}
+                  disabled={loading}
+                />
                 <button
-                  key={prompt}
-                  onClick={() => sendMessage(prompt)}
-                  className="text-left px-4 py-3 rounded-xl text-sm transition-all"
-                  style={{
-                    background: 'var(--color-surface-2)',
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-text-muted)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#8b5cf6';
-                    e.currentTarget.style.color = 'var(--color-text)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                    e.currentTarget.style.color = 'var(--color-text-muted)';
-                  }}
+                  onClick={() => sendMessage()}
+                  disabled={!input.trim() || loading}
+                  className="btn btn-primary h-9 px-3.5 text-xs font-bold shrink-0 rounded-lg flex items-center justify-center gap-1.5"
+                  aria-label="Send message"
                 >
-                  {prompt}
+                  <Send size={14} />
+                  <span className="hidden sm:inline">Send</span>
                 </button>
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-gray-500 px-1">
+                <span>Press <strong>Enter</strong> to send · <strong>Shift+Enter</strong> for new line</span>
+                <span>💪 Form over ego always</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side Panel: Trainer Corner & Focus (4/12 cols, visible on lg) */}
+        <div className="hidden lg:flex lg:col-span-4 xl:col-span-3 flex-col gap-3.5 overflow-y-auto pr-1">
+          {/* Card 1: Gym Trainer Rules */}
+          <div className="card p-4 bg-[#111118]/80 border-gray-800">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap size={16} className="text-amber-400" />
+              <h3 className="font-bold text-xs uppercase tracking-wider text-white">
+                Coach's Gym Principles
+              </h3>
+            </div>
+            <div className="space-y-2.5">
+              {TRAINER_RULES.map((rule, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl bg-gray-900/60 border border-gray-800/60">
+                  <p className="text-xs font-bold text-emerald-400">{rule.title}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{rule.desc}</p>
+                </div>
               ))}
             </div>
           </div>
-        )}
 
-        {/* Messages */}
-        {messages.map((msg, i) => (
-          <Message key={i} role={msg.role} content={msg.content} />
-        ))}
-
-        {/* Loading */}
-        {loading && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-              style={{ background: 'var(--color-surface-2)' }}>
-              <Bot size={14} style={{ color: 'var(--color-accent)' }} />
+          {/* Card 2: Quick Topic Shortcuts */}
+          <div className="card p-4 bg-[#111118]/80 border-gray-800 flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Target size={16} className="text-emerald-400" />
+              <h3 className="font-bold text-xs uppercase tracking-wider text-white">
+                Popular Gym Protocols
+              </h3>
             </div>
-            <div className="px-4 py-3 rounded-2xl" style={{ background: 'var(--color-surface-2)' }}>
-              <Loader size={16} className="animate-spin" style={{ color: 'var(--color-text-muted)' }} />
+            <div className="space-y-1.5">
+              {QUICK_ACTIONS.map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(action.prompt)}
+                  className="w-full p-2.5 rounded-xl text-left text-xs bg-gray-900/40 hover:bg-emerald-500/10 hover:border-emerald-500/40 border border-gray-800/80 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base shrink-0">{action.icon}</span>
+                    <span className="text-gray-300 group-hover:text-white truncate font-medium">
+                      {action.label}
+                    </span>
+                  </div>
+                  <ChevronRight size={13} className="text-gray-500 group-hover:text-emerald-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+
+            {/* Scope reminder */}
+            <div className="mt-4 pt-3 border-t border-gray-800 text-[10px] text-gray-500 flex items-start gap-1.5">
+              <ShieldCheck size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                Coach Alex specializes solely in gym training, weightlifting, and athletic nutrition.
+              </span>
             </div>
           </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="flex items-center gap-2 text-sm p-3 rounded-xl"
-            style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-            <AlertCircle size={14} />
-            {error}
-          </div>
-        )}
-
-        <div ref={bottomRef} />
+        </div>
       </div>
 
-      {/* Input */}
-      {!setupRequired && (
-        <div className="shrink-0 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="flex gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask your AI fitness coach…"
-              rows={1}
-              className="form-input flex-1 resize-none"
-              style={{ minHeight: '44px', maxHeight: '120px' }}
-              disabled={loading}
-              aria-label="Chat message input"
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || loading}
-              className="btn btn-primary"
-              style={{ padding: '0.625rem 1rem' }}
-              aria-label="Send message"
-            >
-              <Send size={16} />
-            </button>
+      {/* ─── Gemini API Key Modal ──────────────────────────────── */}
+      {showKeyModal && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowKeyModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '440px' }}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-500/15 text-purple-400">
+                  <Key size={16} />
+                </div>
+                <h2 className="font-bold text-base text-white">Google Gemini API Key</h2>
+              </div>
+              <button onClick={() => setShowKeyModal(false)} className="btn btn-ghost btn-sm p-1 text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={saveApiKey} className="p-5 space-y-4">
+              <p className="text-xs text-gray-400">
+                Connect your Google Gemini key for instant AI gym coaching responses.
+              </p>
+              <div>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="form-input text-xs"
+                />
+              </div>
+
+              {keySuccess && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">
+                  <CheckCircle2 size={14} /> Key saved successfully!
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowKeyModal(false)}
+                  className="btn btn-secondary flex-1 text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={keySaving || !apiKeyInput.trim()}
+                  className="btn btn-primary flex-1 text-xs"
+                >
+                  {keySaving ? 'Saving…' : 'Save Key'}
+                </button>
+              </div>
+            </form>
           </div>
-          <p className="text-xs mt-2 text-center" style={{ color: 'var(--color-text-subtle)' }}>
-            Press Enter to send · Shift+Enter for new line
-          </p>
         </div>
       )}
     </div>
