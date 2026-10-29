@@ -11,7 +11,6 @@ import RegisterPage from './pages/RegisterPage';
 import AppLayout from './layouts/AppLayout';
 import Dashboard from './pages/Dashboard';
 import WorkoutsPage from './pages/WorkoutsPage';
-import ExercisesPage from './pages/ExercisesPage';
 import AchievementsPage from './pages/AchievementsPage';
 import NutritionPage from './pages/NutritionPage';
 import ProfilePage from './pages/ProfilePage';
@@ -52,7 +51,7 @@ const AppRoutes = () => (
     <Route path="/ai-coach" element={<ProtectedRoute><AppLayout><AiCoachPage /></AppLayout></ProtectedRoute>} />
     <Route path="/weekly-planner" element={<ProtectedRoute><AppLayout><WeeklyPlannerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/workouts" element={<ProtectedRoute><AppLayout><WorkoutsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/exercises" element={<ProtectedRoute><AppLayout><ExercisesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/exercises" element={<Navigate to="/workouts" replace />} />
     <Route path="/achievements" element={<ProtectedRoute><AppLayout><AchievementsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/goals" element={<Navigate to="/achievements" replace />} />
     <Route path="/nutrition" element={<ProtectedRoute><AppLayout><NutritionPage /></AppLayout></ProtectedRoute>} />
