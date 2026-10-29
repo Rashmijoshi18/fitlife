@@ -145,11 +145,11 @@ const Dashboard = () => {
                 <Sparkles size={16} />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                Gemini 2.5
+                AI Coach
               </span>
             </div>
             <h3 className="font-bold text-sm text-white mt-2.5 group-hover:text-purple-400 transition-colors">
-              Gemini Fitness Coach
+              AI Gym Coach
             </h3>
             <p className="text-xs text-gray-400 mt-1">
               Ask fitness questions, get form tips, diet advice, and recovery guidance.

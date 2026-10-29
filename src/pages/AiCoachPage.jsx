@@ -235,14 +235,14 @@ const AiCoachPage = () => {
               {isGeminiActive ? (
                 <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Gemini Live Active
+                  Live Coach Active
                 </span>
               ) : (
                 <button
                   onClick={() => setShowKeyModal(true)}
                   className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all cursor-pointer"
                 >
-                  <Key size={11} /> Connect Gemini API
+                  <Key size={11} /> Connect AI Key
                 </button>
               )}
             </div>
@@ -256,7 +256,7 @@ const AiCoachPage = () => {
           <button
             onClick={() => setShowKeyModal(true)}
             className="btn btn-secondary btn-sm text-xs py-1.5 px-3 flex items-center gap-1.5"
-            title="Configure Gemini API Key"
+            title="Configure AI API Key"
           >
             <Key size={13} />
             <span className="hidden sm:inline">API Key</span>
@@ -454,7 +454,7 @@ const AiCoachPage = () => {
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-500/15 text-purple-400">
                   <Key size={16} />
                 </div>
-                <h2 className="font-bold text-base text-white">Google Gemini API Key</h2>
+                <h2 className="font-bold text-base text-white">AI Coach API Key</h2>
               </div>
               <button onClick={() => setShowKeyModal(false)} className="btn btn-ghost btn-sm p-1 text-gray-400">
                 <X size={18} />
@@ -463,7 +463,7 @@ const AiCoachPage = () => {
 
             <form onSubmit={saveApiKey} className="p-5 space-y-4">
               <p className="text-xs text-gray-400">
-                Connect your Google Gemini key for instant AI gym coaching responses.
+                Connect your AI API key for instant gym coaching responses.
               </p>
               <div>
                 <input

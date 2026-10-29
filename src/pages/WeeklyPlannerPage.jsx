@@ -144,7 +144,7 @@ export const WeeklyPlannerPage = () => {
             <h1 className="text-2xl font-black text-white flex items-center gap-2">
               AI Weekly Workout Planner
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                Gemini 2.5
+                AI Powered
               </span>
             </h1>
             <p className="text-xs text-gray-400">
@@ -273,7 +273,7 @@ export const WeeklyPlannerPage = () => {
                 {generating ? (
                   <>
                     <Loader size={14} className="animate-spin" />
-                    Synthesizing Routine with Gemini...
+                    Synthesizing Routine with AI...
                   </>
                 ) : (
                   <>

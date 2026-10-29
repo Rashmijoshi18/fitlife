@@ -9,7 +9,7 @@ import {
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/workout-studio', label: 'AI Studio', icon: Camera, badge: 'Live AI' },
-  { path: '/ai-coach', label: 'AI Coach', icon: Sparkles, badge: 'Gemini' },
+  { path: '/ai-coach', label: 'AI Coach', icon: Sparkles },
   { path: '/weekly-planner', label: 'Weekly Plan', icon: Calendar },
   { path: '/workouts', label: 'Workouts', icon: Dumbbell },
   { path: '/exercises', label: 'Exercises', icon: BookOpen },
